@@ -6,7 +6,8 @@
   "description": "Turn saved Instagram & YouTube knowledge videos into learnings, experiments, and wins on real projects.",
   "scripts": {
     "test": "node --test test/*.test.js",
-    "start": "npx --yes serve -l 5173 ."
+    "start": "npx --yes serve -l 5173 .",
+    "build:standalone": "node scripts/build-standalone.mjs"
   },
   "license": "MIT"
 }
