@@ -49,6 +49,18 @@ export function extractUrl(text) {
   return m ? m[0].replace(/[),.;!?]+$/, '') : '';
 }
 
+/** Every distinct video link in a block of text (one per line, or mixed with captions). */
+export function extractUrls(text) {
+  const out = [];
+  const seen = new Set();
+  for (const m of String(text || '').matchAll(/https?:\/\/[^\s<>"']+/gi)) {
+    const url = m[0].replace(/[),.;!?]+$/, '');
+    const key = normalizeUrl(url);
+    if (!seen.has(key)) { seen.add(key); out.push(url); }
+  }
+  return out;
+}
+
 export function detectPlatform(url) {
   const u = String(url || '').toLowerCase();
   if (/(^|\/\/|\.)instagram\.com|instagr\.am/.test(u)) return 'instagram';

@@ -10,7 +10,7 @@ Google Ads, social, AI, video creation) into a loop you actually finish:
 | **Save** | Share a reel from Instagram (or paste a link) | Auto-detects platform, removes duplicates, auto-tags the topic from the caption |
 | **Watch** | Hit *Today's 3*: three picks from your queue | Prefers topics you've neglected lately so the backlog stays balanced |
 | **Learn** | Write the ONE thing you learned + how you'd use it | Files it in your **Knowledge bank**, grouped by topic |
-| **Apply** | Send that learning to a connected project (SuperMIA, RevEvolve, a client…) | Creates an **experiment**: Queued → Testing → Worked / Didn't work |
+| **Apply** | Send that learning to a connected project (your website, a client, a side project — any name you like) | Creates an **experiment**: Queued → Testing → Worked / Didn't work |
 | **Prove** | Log the result ("CPL $42 → $27") | Shows it on the **Wins wall**; exports a per-project Playbook as Markdown |
 
 There are no boards and no due dates, so it doesn't feel like project management. You get XP, a learning streak, and one dashboard (**Brain**)
@@ -27,18 +27,17 @@ npm start        # serves on http://localhost:5173
 npm test         # unit tests for the tracking logic (node --test)
 ```
 
-### Put it on your phone (needed for "Share → Reel2Real")
+### Put it on your phone
 
-1. In GitHub: **Settings → Pages → Source: GitHub Actions**. Merging to `main` deploys to
-   `https://<you>.github.io/video-knowledge-tracker/`.
-2. **Android:** open that URL in Chrome → ⋮ → **Install app**. Reel2Real now shows up in Instagram's
-   and YouTube's **Share** sheet. Share a reel, add a 3-word note, tap Save.
-3. **iPhone** (iOS doesn't let web apps join the share sheet yet, so use a Shortcut):
-   1. Safari → Share → **Add to Home Screen**.
-   2. Shortcuts app → New Shortcut → turn on **Show in Share Sheet** (accepts URLs + text).
-   3. Add action **URL**: `https://<you>.github.io/video-knowledge-tracker/?url=` then insert *Shortcut Input*.
-   4. Add action **Open URLs**. Name it "Reel2Real".
-   5. In Instagram: Share → **Reel2Real**. Add `&save=1` to the end of the URL to save straight to the queue with no extra tap.
+1. In GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**. Every merge to `main`
+   deploys to `https://vickylalwani1995-boop.github.io/video-knowledge-tracker/`.
+2. **iPhone:** open that link in **Safari** → Share button → **Add to Home Screen** → Add.
+   To save a reel: in Instagram tap **Share (paper plane) → Copy link**, open Reel2Real from your
+   home screen, tap **📋 Paste link** (then tap iOS's "Paste" bubble), add a few words, tap **Save to queue**.
+   Always open it from the home-screen icon, not Safari. iOS gives each one separate storage.
+3. **YouTube** works the same way: Share → Copy link → 📋 Paste link. To bring in many at once, copy several links (one per line) and tap 📋 Paste link — they all go into the queue.
+4. **Android:** open the link in Chrome → ⋮ → **Install app**. Reel2Real then appears in Instagram's and
+   YouTube's **Share** sheet: Share → Reel2Real → Save.
 
 Any link of the form `…/?url=<link>&text=<caption>` works, so bookmarklets and automations (n8n, Zapier) can feed it too.
 

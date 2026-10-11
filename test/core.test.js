@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  extractUrl, detectPlatform, normalizeUrl, suggestTopics, createVideo, advance, createExperiment,
+  extractUrl, extractUrls, detectPlatform, normalizeUrl, suggestTopics, createVideo, advance, createExperiment,
   setExperimentStatus, emptyState, periodStats, topicStats, blindSpots, learningStreak, todaysPicks,
   projectPlaybook, totalXp, levelFor, findDuplicate, mergeState,
 } from '../core.js';
@@ -59,7 +59,7 @@ test('video lifecycle timestamps', () => {
 
 function fixture() {
   const s = emptyState();
-  s.projects.push({ id: 'p1', name: 'SuperMIA' });
+  s.projects.push({ id: 'p1', name: 'My Website' });
   const mk = (topics, addedDaysAgo, stage, learnedDaysAgo) => {
     let v = createVideo({ url: `https://youtu.be/${Math.random()}`, topics }, NOW - addedDaysAgo * DAY);
     if (stage !== 'saved') v = advance(v, stage, { insight: `insight ${topics}` }, NOW - learnedDaysAgo * DAY);
@@ -126,7 +126,7 @@ test('duplicates are detected across share variants', () => {
 test('playbook export and xp', () => {
   const s = fixture();
   const md = projectPlaybook(s, 'p1');
-  assert.match(md, /# SuperMIA — Playbook/);
+  assert.match(md, /# My Website — Playbook/);
   assert.match(md, /Add FAQ block/);
   assert.match(md, /\+3 AI Overview citations/);
   assert.ok(totalXp(s) > 0);
@@ -137,8 +137,13 @@ test('playbook export and xp', () => {
 test('mergeState unions by id', () => {
   const a = fixture();
   const b = emptyState();
-  b.projects.push({ id: 'p2', name: 'RevEvolve' });
+  b.projects.push({ id: 'p2', name: 'Client A' });
   const m = mergeState(a, b);
   assert.equal(m.projects.length, 2);
   assert.equal(m.videos.length, a.videos.length);
+});
+
+test('extractUrls handles a pasted list of YouTube links and drops duplicates', () => {
+  const list = 'https://youtu.be/AAA\nhttps://www.youtube.com/watch?v=BBB&t=5\nhttps://www.youtube.com/watch?v=AAA (dup)';
+  assert.deepEqual(extractUrls(list), ['https://youtu.be/AAA', 'https://www.youtube.com/watch?v=BBB&t=5']);
 });

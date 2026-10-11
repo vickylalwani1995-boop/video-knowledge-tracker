@@ -1,5 +1,5 @@
 import {
-  allTopics, emptyState, extractUrl, detectPlatform, normalizeUrl, suggestTopics, createVideo, findDuplicate, advance,
+  allTopics, emptyState, extractUrl, extractUrls, detectPlatform, normalizeUrl, suggestTopics, createVideo, findDuplicate, advance,
   createExperiment, setExperimentStatus, periodStats, topicStats, blindSpots, learningStreak, totalXp,
   levelFor, todaysPicks, projectPlaybook, mergeState, uid, EXP_STATUSES, XP,
 } from './core.js';
@@ -7,7 +7,6 @@ import {
 const STORE_KEY = 'reel2real:v1';
 const UI_KEY = 'reel2real:ui';
 const PROJECT_COLORS = ['#ff4f81', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#14b8a6', '#ef4444', '#ec4899'];
-const PROJECT_SUGGESTIONS = ['SuperMIA', 'RevEvolve', 'QuantumDataLytica', 'Hampton Family Dental', 'Botfinity'];
 
 // ---------- state ----------
 let state = load(STORE_KEY) || emptyState();
@@ -147,7 +146,7 @@ function openLearn(id) {
       <div class="field"><label>The ONE thing I learned</label>
         <textarea name="insight" required autofocus placeholder="e.g. Meta's Andromeda rewards 10–15 creatively different ads in one broad ad set">${esc(v.insight)}</textarea></div>
       <div class="field"><label>How I could use it (optional)</label>
-        <textarea name="idea" placeholder="e.g. Test 12 new hooks for the dental campaign">${esc(v.idea)}</textarea></div>
+        <textarea name="idea" placeholder="e.g. Test 12 new hooks in my next ad campaign">${esc(v.idea)}</textarea></div>
       <div class="field"><label>Topics</label>${topicChips(v.topics.length ? v.topics : suggestTopics(`${v.title} ${v.note}`, allTopics(state)).slice(0, 2))}</div>
       ${state.projects.length ? `
       <div class="field"><label>Apply it to a project right away? (optional)</label>
@@ -180,7 +179,7 @@ function openApply(videoId, presetProject) {
     <div class="stack" style="margin-top:14px">
       <div class="field"><label>Project</label>
         ${hasProjects ? `<select name="project">${projectOptions(presetProject)}<option value="__new">+ New project…</option></select>` : ''}
-        <input name="newProject" placeholder="New project name, e.g. SuperMIA" ${hasProjects ? 'style="margin-top:8px"' : 'required autofocus'}>
+        <input name="newProject" placeholder="New project name, e.g. My Website" ${hasProjects ? 'style="margin-top:8px"' : 'required autofocus'}>
         ${hasProjects ? '<div class="hint">Only needed if you picked “New project”.</div>' : ''}</div>
       <div class="field"><label>What exactly will you do?</label>
         <textarea name="plan" required ${hasProjects ? 'autofocus' : ''} placeholder="Concrete action, e.g. Add a 40-word answer block + FAQ schema to the pricing page">${esc(v.idea)}</textarea></div>
@@ -252,7 +251,7 @@ function openProject(id) {
     <h3>${p ? 'Edit project' : 'New project'}</h3>
     <p class="sub">A client, brand or side project you want to apply what you learn to.</p>
     <div class="stack" style="margin-top:14px">
-      <div class="field"><label>Name</label><input name="name" required autofocus value="${esc(p?.name)}" placeholder="e.g. SuperMIA"></div>
+      <div class="field"><label>Name</label><input name="name" required autofocus value="${esc(p?.name)}" placeholder="e.g. My Website, Client A, Personal Brand"></div>
       <div class="field"><label>Context (optional)</label><textarea name="context" placeholder="Industry, goals, channels you run — so future-you knows which hacks fit">${esc(p?.context)}</textarea></div>
     </div>
     <div class="row" style="margin-top:16px">
@@ -323,7 +322,7 @@ function openSettings() {
       <div class="field"><label>Send reels here from your phone</label>
         <div class="hint">
           <b>Android:</b> open this page in Chrome → menu → <i>Install app</i>. Then in Instagram tap <i>Share → Reel2Real</i>.<br>
-          <b>iPhone:</b> add to Home Screen, then make a Shortcut that opens <code>${esc(share)}</code> + the shared URL (see README).
+          <b>iPhone:</b> open this page in Safari → Share → <i>Add to Home Screen</i>. Then in Instagram tap <i>Share → Copy link</i>, open Reel2Real and tap <i>📋 Paste link</i>.
         </div></div>
       <div class="field"><label>Backup</label>
         <div class="row">
@@ -421,10 +420,11 @@ function renderVitals() {
 function captureCard(prefill = {}) {
   return `
   <form class="card capture stack" id="capture">
-    <input type="url" name="url" placeholder="Paste an Instagram reel or YouTube link" value="${esc(prefill.url)}" required inputmode="url" autocomplete="off">
+    <input type="text" name="url" placeholder="Paste an Instagram reel or YouTube link" value="${esc(prefill.url)}" inputmode="url" autocomplete="off">
     <textarea name="note" placeholder="What's it about? Paste the caption or jot 3 words — topics get auto-tagged">${esc(prefill.note)}</textarea>
     ${topicChips(prefill.topics || [])}
     <div class="row end">
+      ${navigator.clipboard?.readText ? '<button class="btn" type="button" data-action="paste" style="margin-right:auto">📋 Paste link</button>' : ''}
       <button class="btn" type="submit" name="mode" value="learn">Watched it → log learning</button>
       <button class="btn primary" type="submit" name="mode" value="save">Save to queue</button>
     </div>
@@ -486,12 +486,41 @@ function wireCapture() {
   if (pendingShare) { form.note.focus(); autoTag(); }
   form.addEventListener('submit', e => {
     e.preventDefault();
+    const many = extractUrls(`${form.url.value}\n${form.note.value}`);
+    if (many.length > 1) { pendingShare = null; return bulkAdd(many); }
     const shared = pendingShare;
     pendingShare = null;
     const v = addVideo({ url: form.url.value, note: form.note.value, topics: new FormData(form).getAll('topics') });
     if (!v) { pendingShare = shared; return; }
     if (e.submitter?.value === 'learn') openLearn(v.id);
   });
+}
+
+function bulkAdd(urls) {
+  const fresh = urls.filter(u => !findDuplicate(state, u));
+  for (const url of fresh.reverse()) {
+    const v = createVideo({ url });
+    state.videos.unshift(v);
+    if (v.platform === 'youtube') fetchYoutubeTitle(v.id, url);
+  }
+  const skipped = urls.length - fresh.length;
+  commit(`Added ${fresh.length} video${fresh.length === 1 ? '' : 's'} to your queue${skipped ? ` (${skipped} already saved)` : ''}`);
+}
+
+async function pasteFromClipboard() {
+  const form = $('#capture');
+  let raw = '';
+  try { raw = await navigator.clipboard.readText(); } catch { /* denied */ }
+  const urls = extractUrls(raw);
+  if (!urls.length) { toast('No link on your clipboard — in Instagram/YouTube tap Share → Copy link first'); return; }
+  if (urls.length > 1) return bulkAdd(urls);
+  const url = urls[0];
+  form.url.value = url;
+  const caption = raw.replace(url, '').trim();
+  if (caption && !form.note.value) form.note.value = caption;
+  form.note.dispatchEvent(new Event('input'));
+  form.note.focus();
+  toast(`Link pasted from ${detectPlatform(url)} — add a few words & save`);
 }
 
 function renderLibrary() {
@@ -532,7 +561,6 @@ function expRow(e) {
 function renderLab() {
   const order = { testing: 0, queued: 1, won: 2, flopped: 3 };
   const waiting = state.videos.filter(v => v.stage === 'learned' && !expsFor(v.id).length);
-  const unused = PROJECT_SUGGESTIONS.filter(n => !state.projects.some(p => p.name.toLowerCase() === n.toLowerCase()));
   $('#view-lab').innerHTML = `
     <div>
       <p class="hero">The Lab 🧪</p>
@@ -560,7 +588,6 @@ function renderLab() {
     }).join('')}
     <div class="card stack">
       <button class="btn primary" data-action="new-project">+ Connect a project</button>
-      ${unused.length ? `<div class="chips"><span class="hint">Quick add:</span>${unused.map(n => `<button class="chip off" data-action="quick-project" data-id="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
     </div>`;
 }
 
@@ -655,12 +682,12 @@ document.addEventListener('click', e => {
     case 'playbook': return copyPlaybook(id);
     case 'new-project': return openProject();
     case 'edit-project': return openProject(id);
-    case 'quick-project': addProject(id); return commit(`${id} connected 🔌`);
     case 'stage': ui.stage = id; return render();
     case 'topic': ui.topic = id; return render();
     case 'period': ui.period = id === 'all' ? 'all' : Number(id); saveUi(); return render();
     case 'goto-topic': ui.topic = id; ui.stage = 'saved'; return go('library');
     case 'open-settings': return openSettings();
+    case 'paste': return pasteFromClipboard();
   }
 });
 
@@ -675,7 +702,7 @@ document.addEventListener('input', e => {
   }
 });
 
-// Share target (Android) and ?url= deep links (iOS Shortcuts, bookmarklets).
+// Share target (Android) and ?url= deep links (bookmarklets, automations).
 function ingestShare() {
   const params = new URLSearchParams(location.search);
   const raw = [params.get('url'), params.get('text'), params.get('title')].filter(Boolean).join(' ');
