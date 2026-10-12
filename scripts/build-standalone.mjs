@@ -21,7 +21,9 @@ const html = read('index.html')
 
 // The hosted viewer supplies doctype/head/body and pads the page for phone safe areas itself.
 const body = html.match(/<body>([\s\S]*)<\/body>/)[1];
+const fonts = html.match(/<link rel="stylesheet" href="https:\/\/fonts[^>]*>/)[0];
 const web = `<title>Reel2Real</title>
+${fonts}
 <style>
 ${css}
 .top { top: env(safe-area-inset-top, 0px); padding-top: 10px; }

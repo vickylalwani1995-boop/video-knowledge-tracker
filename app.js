@@ -103,7 +103,7 @@ function displayTitle(v) {
 
 const PLATFORM_NAME = { instagram: 'Instagram', youtube: 'YouTube', tiktok: 'TikTok', linkedin: 'LinkedIn', web: 'the web' };
 
-const PLATFORM_ICON = { instagram: '📸', youtube: '▶', tiktok: '♪', linkedin: 'in', web: '🔗' };
+const PLATFORM_ICON = { instagram: 'IG', youtube: 'YT', tiktok: 'TT', linkedin: 'in', web: 'URL' };
 
 let toastTimer;
 function toast(msg) {
@@ -172,7 +172,7 @@ function addVideo({ url, note, topics, title }) {
   if (dup) { toast('Already in your library — bumped it to the top of the queue'); dup.addedAt = Date.now(); commit(); return dup; }
   const v = createVideo({ url: clean, note, title, topics });
   state.videos.unshift(v);
-  commit(`Saved to queue · +${XP.saved} XP`);
+  commit('Video added');
   if (v.platform === 'youtube' && !v.title) fetchYoutubeTitle(v.id, clean);
   return v;
 }
@@ -193,18 +193,18 @@ async function fetchYoutubeTitle(id, url) {
 function markWatched(id) {
   const i = state.videos.findIndex(v => v.id === id);
   state.videos[i] = advance(state.videos[i], 'watched');
-  commit(`Watched · +${XP.watched} XP — now, what did you learn?`);
+  commit('Marked as watched');
 }
 
 function openLearn(id) {
   const v = videoById(id);
   openModal(`
-    <h3>💡 Lock in the learning</h3>
+    <h3>What did you learn?</h3>
     <p class="sub">${esc(displayTitle(v))}</p>
     <div class="stack" style="margin-top:14px">
-      ${IN_ARTIFACT ? `<div class="field ai-box"><label>✨ Let AI write it (optional)</label>
+      ${IN_ARTIFACT ? `<div class="field ai-box"><label>Let AI write it (optional)</label>
         <textarea name="raw" id="learn-raw" placeholder="Paste the reel's caption, or type what the video said in your own words — messy is fine">${esc(v.note)}</textarea>
-        <div class="row" style="margin-top:8px"><button type="button" class="btn small" data-action="ai-fill" data-id="${v.id}">✨ Summarize into a learning</button><span class="hint" id="ai-status"></span></div></div>` : ''}
+        <div class="row" style="margin-top:8px"><button type="button" class="btn small" data-action="ai-fill" data-id="${v.id}">Summarize with AI</button><span class="hint" id="ai-status"></span></div></div>` : ''}
       <div class="field"><label>The ONE thing I learned</label>
         <textarea name="insight" required autofocus placeholder="e.g. Meta's Andromeda rewards 10–15 creatively different ads in one broad ad set">${esc(v.insight)}</textarea></div>
       <div class="field"><label>How I could use it (optional)</label>
@@ -222,11 +222,11 @@ function openLearn(id) {
     state.videos[i] = advance(state.videos[i], 'learned', {
       insight: fd.get('insight').trim(), idea: fd.get('idea').trim(), topics: fd.getAll('topics'),
     });
-    let msg = `Learning locked · +${XP.learned} XP 💡`;
+    let msg = 'Learning saved';
     const pid = fd.get('project');
     if (pid) {
       state.experiments.unshift(createExperiment({ videoId: id, projectId: pid, plan: fd.get('idea').trim() || fd.get('insight').trim() }));
-      msg = `Learned + applied · +${XP.learned + XP.applied} XP 🚀`;
+      msg = 'Learning saved and added to the project';
     }
     commit(msg);
   });
@@ -309,7 +309,7 @@ Use only what the notes say; do not invent statistics or claims. If the notes ar
     cur.projectWhy = cur.projectId ? String(out.why || '') : '';
     if (Array.isArray(out.topics) && !cur.topics.length) cur.topics = out.topics.filter(t => allTopics(state).some(x => x.id === t));
     aiBusy.delete(id);
-    commit('Action points ready ✅');
+    commit('Action points ready');
   } catch (err) {
     aiBusy.delete(id);
     render();
@@ -320,13 +320,13 @@ Use only what the notes say; do not invent statistics or claims. If the notes ar
 function askForCaption(id) {
   const v = videoById(id);
   openModal(`
-    <h3>✨ Get action points</h3>
+    <h3>Get action points</h3>
     <p class="sub">The AI can't watch the video, so give it the words. In Instagram, open the reel → tap the caption → copy it. Or type what the video said in 2–3 lines.</p>
     <div class="field" style="margin-top:14px"><label>Caption or what the video said</label>
       <textarea name="note" required autofocus placeholder="e.g. Meta's Andromeda update: use 10-15 very different creatives in one broad ad set, stop splitting audiences…">${esc(v.note)}</textarea></div>
     <div class="row end" style="margin-top:16px">
       <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
-      <button class="btn primary" value="ok">✨ Get action points</button>
+      <button class="btn primary" value="ok">Get action points</button>
     </div>`, fd => {
     videoById(id).note = fd.get('note').trim();
     save();
@@ -339,7 +339,7 @@ function openApply(videoId, presetProject) {
   presetProject = presetProject || v.projectId;
   const hasProjects = state.projects.length > 0;
   openModal(`
-    <h3>🚀 Apply to a project</h3>
+    <h3>Start in a project</h3>
     <p class="sub">${esc(v.insight || displayTitle(v))}</p>
     <div class="stack" style="margin-top:14px">
       <div class="field"><label>Project</label>
@@ -349,7 +349,7 @@ function openApply(videoId, presetProject) {
       <div class="field"><label>What exactly will you do?</label>
         <textarea name="plan" required ${hasProjects ? 'autofocus' : ''} placeholder="Concrete action, e.g. Add a 40-word answer block + FAQ schema to the pricing page">${esc(v.idea || (v.actions || []).filter(a => !a.done).map(a => `• ${a.text}`).join('\n'))}</textarea></div>
       <div class="field"><label>Status</label>
-        <select name="status"><option value="queued">⏳ Queued</option><option value="testing">🧪 Testing now</option></select></div>
+        <select name="status"><option value="queued">To do</option><option value="testing">In progress</option></select></div>
     </div>
     <div class="row end" style="margin-top:16px">
       <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
@@ -363,7 +363,7 @@ function openApply(videoId, presetProject) {
     }
     const exp = createExperiment({ videoId, projectId: pid, plan: fd.get('plan') });
     state.experiments.unshift(setExperimentStatus(exp, fd.get('status')));
-    commit(`Experiment started · +${XP.applied} XP 🚀`);
+    commit('Added to the project');
   });
 }
 
@@ -437,7 +437,7 @@ function openProject(id) {
     const target = p || addProject(fd.get('name'));
     target.name = fd.get('name').trim();
     target.context = fd.get('context').trim();
-    commit(p ? 'Saved' : `${target.name} connected 🔌`);
+    commit(p ? 'Saved' : `${target.name} added`);
   });
 }
 
@@ -446,7 +446,7 @@ function setStatus(expId, status) {
   const exp = state.experiments[i];
   if (status === 'won' || status === 'flopped') {
     openModal(`
-      <h3>${status === 'won' ? '🏆 It worked!' : "🧊 Didn't work"}</h3>
+      <h3>${status === 'won' ? 'It worked' : "It didn't work"}</h3>
       <p class="sub">${esc(exp.plan)}</p>
       <div class="field" style="margin-top:14px"><label>${status === 'won' ? 'What was the result? Numbers beat feelings.' : 'What did you learn from it?'}</label>
         <textarea name="result" autofocus placeholder="${status === 'won' ? 'e.g. CPL dropped from $42 → $27 in 9 days' : 'e.g. Not enough budget for the learning phase'}">${esc(exp.result)}</textarea></div>
@@ -455,7 +455,7 @@ function setStatus(expId, status) {
         <button class="btn primary" value="ok">Save result</button>
       </div>`, fd => {
       state.experiments[i] = setExperimentStatus(exp, status, fd.get('result').trim());
-      commit(status === 'won' ? `Win logged · +${XP.won} XP 🏆` : 'Logged. Failing fast is still learning.');
+      commit(status === 'won' ? 'Result saved' : 'Result saved');
     });
     return;
   }
@@ -465,7 +465,7 @@ function setStatus(expId, status) {
 
 async function copyPlaybook(projectId) {
   const md = projectPlaybook(state, projectId);
-  try { await navigator.clipboard.writeText(md); toast('Playbook copied as Markdown 📋'); }
+  try { await navigator.clipboard.writeText(md); toast('Playbook copied as Markdown'); }
   catch { download(`${state.projects.find(p => p.id === projectId).name}-playbook.md`, md, 'text/markdown'); }
 }
 
@@ -494,8 +494,8 @@ function openSettings() {
         </div></div>
       <div class="field"><label>Backup</label>
         <div class="row">
-          <button class="btn small" value="export" formnovalidate>⤓ Export JSON</button>
-          <label class="btn small" style="cursor:pointer">⤒ Import JSON<input type="file" name="file" accept="application/json" hidden id="import-file"></label>
+          <button class="btn small" value="export" formnovalidate>Export backup</button>
+          <label class="btn small" style="cursor:pointer">Import backup<input type="file" name="file" accept="application/json" hidden id="import-file"></label>
           <button class="btn small ghost danger" value="wipe" formnovalidate>Wipe all data</button>
         </div>
         <div class="hint">Your data lives only in this browser. Export now and then.</div></div>
@@ -567,44 +567,44 @@ function videoCard(v) {
   const proj = pm.get(v.projectId) || pm.get(exps[0]?.projectId);
   const statusOf = id => EXP_STATUSES.find(x => x.id === id);
 
-  const learned = busy ? '<p class="muted">✨ Reading the caption…</p>'
+  const learned = busy ? '<p class="muted working">Reading the caption…</p>'
     : v.insight
       ? `<p>${esc(v.insight)}</p>`
       : `<p class="muted">Not filled yet.</p>
-         <button class="btn small primary" data-action="${IN_ARTIFACT ? 'gen-actions' : 'learn'}" data-id="${v.id}">${IN_ARTIFACT ? '✨ Fill steps 1–3 for me' : '✍️ Write what I learned'}</button>`;
+         <button class="btn small primary" data-action="${IN_ARTIFACT ? 'gen-actions' : 'learn'}" data-id="${v.id}">${IN_ARTIFACT ? 'Fill in steps 1–3 with AI' : 'Write what I learned'}</button>`;
 
-  const todo = busy ? '<p class="muted">✨ Working out the steps…</p>'
+  const todo = busy ? '<p class="muted working">Writing the steps…</p>'
     : steps.length
       ? `<ul>${steps.map((a, i) => `<li class="${a.done ? 'done' : ''}"><label>
           <input type="checkbox" data-action="toggle-step" data-id="${v.id}" data-i="${i}" ${a.done ? 'checked' : ''}><span>${esc(a.text)}</span></label></li>`).join('')}</ul>`
-      : `<p class="muted">No steps yet.</p>${v.insight ? `<button class="btn small" data-action="${IN_ARTIFACT ? 'gen-actions' : 'edit'}" data-id="${v.id}">${IN_ARTIFACT ? '✨ Get action points' : '✍️ Add steps'}</button>` : ''}`;
+      : `<p class="muted">No steps yet.</p>${v.insight ? `<button class="btn small" data-action="${IN_ARTIFACT ? 'gen-actions' : 'edit'}" data-id="${v.id}">${IN_ARTIFACT ? 'Get action points' : 'Add steps'}</button>` : ''}`;
 
   let where;
   if (exps.length) {
     where = exps.map(e => {
       const p = pm.get(e.projectId);
       const st = statusOf(e.status);
-      return `<p><b style="color:${p?.color || 'inherit'}">${esc(p?.name || 'Project')}</b> · ${st.emoji} ${st.label}${e.result ? ` — ${esc(e.result)}` : ''}</p>`;
+      return `<p><b style="color:${p?.color || 'inherit'}">${esc(p?.name || 'Project')}</b> · <span class="status s-${e.status}">${st.label}</span>${e.result ? ` — ${esc(e.result)}` : ''}</p>`;
     }).join('') + '<p class="hint">Update the status in the Lab tab.</p>';
   } else if (busy) {
-    where = '<p class="muted">✨ Picking the best project…</p>';
+    where = '<p class="muted working">Picking the best project…</p>';
   } else if (!state.projects.length) {
     where = `<p class="muted">You haven't added any projects yet.</p><button class="btn small" data-action="new-project">+ Add my first project</button>`;
   } else {
     where = `${proj ? `<p>Best fit: <b style="color:${proj.color}">${esc(proj.name)}</b>${v.projectWhy ? ` — ${esc(v.projectWhy)}` : ''}</p>` : '<p class="muted">Not linked to a project yet.</p>'}
-      <button class="btn small primary" data-action="apply" data-id="${v.id}">🚀 Start in ${proj ? esc(proj.name) : 'a project'}</button>`;
+      <button class="btn small primary" data-action="apply" data-id="${v.id}">Start in ${proj ? esc(proj.name) : 'a project'}</button>`;
   }
 
   const stepClass = n => (n === 1 ? v.insight : n === 2 ? steps.length && doneSteps === steps.length : exps.length) ? 'step on' : 'step';
   return `
   <article class="card video">
     <header class="vhead">
-      <a class="plat ${v.platform}" href="${esc(v.url)}" target="_blank" rel="noopener" title="Watch">${PLATFORM_ICON[v.platform] || '🔗'}</a>
+      <a class="plat ${v.platform}" href="${esc(v.url)}" target="_blank" rel="noopener" title="Watch">${PLATFORM_ICON[v.platform] || 'URL'}</a>
       <div class="vtitle">
         <div class="title">${esc(displayTitle(v))}</div>
         <div class="meta">${PLATFORM_NAME[v.platform]} · saved ${ago(v.addedAt)}${v.topics.length ? ' · ' : ''}${v.topics.map(t => esc(topicMap().get(t)?.name || '')).filter(Boolean).join(', ')}</div>
       </div>
-      <a class="btn small watch" href="${esc(v.url)}" target="_blank" rel="noopener">▶ Watch</a>
+      <a class="btn small watch" href="${esc(v.url)}" target="_blank" rel="noopener">Watch ↗</a>
       <button class="btn small ghost" data-action="edit" data-id="${v.id}" aria-label="Edit">⋯</button>
     </header>
     ${!IN_ARTIFACT && embedUrl(v.url) ? `<button class="linkish" data-action="play" data-id="${v.id}">Play here</button><div class="player" id="player-${v.id}" hidden></div>` : ''}
@@ -617,25 +617,21 @@ function videoCard(v) {
 }
 
 function renderVitals() {
-  const xp = totalXp(state);
-  const lv = levelFor(xp);
-  const streak = learningStreak(state);
-  $('#vitals').innerHTML = `
-    <span class="pill" title="Days in a row you learned something">🔥 ${streak}</span>
-    <span class="pill lvl xp" title="${lv.toNext} XP to next level">Lv ${lv.level} · ${xp} XP<i style="width:${Math.round(lv.progress * 100)}%"></i></span>
-    ${IN_ARTIFACT ? `<span class="pill" title="${cloud.ready && !cloud.failed ? 'Saved to your Claude account — same data on every device' : 'Saved on this device only'}">${cloud.ready && !cloud.failed ? '☁︎ Synced' : '⌂ Local'}</span>` : ''}`;
+  $('#vitals').innerHTML = IN_ARTIFACT
+    ? `<span class="sync ${cloud.ready && !cloud.failed ? 'on' : ''}" title="${cloud.ready && !cloud.failed ? 'Saved to your Claude account — same data on every device' : 'Saved on this device only'}">${cloud.ready && !cloud.failed ? 'Synced' : 'This device only'}</span>`
+    : '';
 }
 
 function captureCard(prefill = {}) {
   return `
   <form class="card capture stack" id="capture">
     <label class="cap-label" for="cap-url">Add a video</label>
-    <input type="text" id="cap-url" name="url" placeholder="1. Paste the Instagram or YouTube link" value="${esc(prefill.url)}" inputmode="url" autocomplete="off">
-    <textarea name="note" placeholder="2. Paste the caption (or type what the video says) — the AI needs this to write your action points">${esc(prefill.note)}</textarea>
+    <input type="text" id="cap-url" name="url" placeholder="Instagram or YouTube link" value="${esc(prefill.url)}" inputmode="url" autocomplete="off">
+    <textarea name="note" placeholder="Caption, or what the video says. The AI writes your action points from this.">${esc(prefill.note)}</textarea>
     ${topicChips(prefill.topics || [])}
     <div class="row end">
-      ${navigator.clipboard?.readText && !IN_ARTIFACT ? '<button class="btn" type="button" data-action="paste" style="margin-right:auto">📋 Paste link</button>' : ''}
-      <button class="btn primary" type="submit" name="mode" value="save">${IN_ARTIFACT ? '✨ Add video & get action points' : 'Add video'}</button>
+      ${navigator.clipboard?.readText && !IN_ARTIFACT ? '<button class="btn" type="button" data-action="paste" style="margin-right:auto">Paste link</button>' : ''}
+      <button class="btn primary" type="submit" name="mode" value="save">${IN_ARTIFACT ? 'Add video' : 'Add video'}</button>
     </div>
   </form>`;
 }
@@ -649,8 +645,8 @@ function renderToday() {
 
   $('#view-today').innerHTML = `
     <div>
-      <p class="hero">${state.videos.length ? `<em>${stepsLeft}</em> action point${stepsLeft === 1 ? '' : 's'} to do · <em>${open.length}</em> video${open.length === 1 ? '' : 's'} in progress` : 'Turn saved videos into <em>action points</em> for your projects.'}</p>
-      <p class="sub">Every video goes through 3 steps: <b>① what I learned</b> → <b>② action points</b> → <b>③ project</b>.</p>
+      <p class="hero">${state.videos.length ? `${stepsLeft} action point${stepsLeft === 1 ? '' : 's'} to do` : 'Turn saved videos into action points for your projects.'}</p>
+      <p class="sub">Each video moves through three steps: what you learned, the action points, and the project you use it in.</p>
     </div>
     ${captureCard(pendingShare || {})}
     ${nextSteps.length ? `<h2>My action points</h2><div class="card todo-feed">${nextSteps.map(({ v, a, i }) => {
@@ -660,7 +656,7 @@ function renderToday() {
     }).join('')}</div>` : ''}
     ${open.length ? `<h2>Videos in progress</h2>${open.map(videoCard).join('')}` : ''}
     ${!state.videos.length ? `
-      <div class="card empty"><div class="big">🎬 → 💡 → ✅ → 🚀</div>
+      <div class="card empty">
         <p>Paste a video link and its caption above. You'll get <b>what it teaches</b>, <b>action points</b>, and <b>which project</b> to use it in.</p></div>` : ''}`;
   wireCapture();
 }
@@ -749,7 +745,7 @@ function renderLibrary() {
       ${allTopics(state).map(t => `<button class="chip ${ui.topic === t.id ? '' : 'off'}" style="--c:${t.color}" data-action="topic" data-id="${t.id}">${esc(t.name)}</button>`).join('')}
     </div>
     <p class="hint">${list.length} video${list.length === 1 ? '' : 's'}${ui.topic !== 'all' ? ` in ${esc(tm.get(ui.topic)?.name)}` : ''}</p>
-    ${list.length ? list.map(videoCard).join('') : '<div class="card empty"><div class="big">🔍</div>Nothing here yet.</div>'}`;
+    ${list.length ? list.map(videoCard).join('') : '<div class="card empty">Nothing here yet.</div>'}`;
 }
 
 function expRow(e) {
@@ -759,8 +755,8 @@ function expRow(e) {
   <div class="exp ${e.status}">
     <div class="plan">${esc(e.plan)}</div>
     <div class="from">${p ? `<b style="color:${p.color}">${esc(p.name)}</b> · ` : ''}from: ${v ? `<a href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.insight || displayTitle(v))}</a>` : 'deleted video'} · ${ago(e.createdAt)}</div>
-    ${e.result ? `<div class="result">${e.status === 'won' ? '🏆' : '🧊'} ${esc(e.result)}</div>` : ''}
-    <div class="status-row">${EXP_STATUSES.map(s => `<button class="${e.status === s.id ? 'on' : ''}" data-action="status" data-id="${e.id}" data-status="${s.id}">${s.emoji} ${s.label}</button>`).join('')}
+    ${e.result ? `<div class="result">${esc(e.result)}</div>` : ''}
+    <div class="status-row">${EXP_STATUSES.map(s => `<button class="${e.status === s.id ? 'on' : ''}" data-action="status" data-id="${e.id}" data-status="${s.id}">${s.label}</button>`).join('')}
       <button data-action="del-exp" data-id="${e.id}" title="Remove experiment">✕</button></div>
   </div>`;
 }
@@ -770,7 +766,7 @@ function renderLab() {
   const waiting = state.videos.filter(v => v.stage === 'learned' && !expsFor(v.id).length);
   $('#view-lab').innerHTML = `
     <div>
-      <p class="hero">The Lab 🧪</p>
+      <p class="hero">Projects</p>
       <p class="sub">Every learning becomes an experiment on a real project. Track what worked, kill what didn't.</p>
     </div>
     ${waiting.length ? `<h2>${waiting.length} learning${waiting.length > 1 ? 's' : ''} looking for a home</h2>${waiting.slice(0, 5).map(videoCard).join('')}` : ''}
@@ -784,8 +780,8 @@ function renderLab() {
           <span class="dot" style="background:${p.color}"></span>
           <h3>${esc(p.name)}</h3>
           <div class="row">
-            <span class="hint">${exps.length} exp · ${won} 🏆</span>
-            ${exps.length ? `<button class="btn small ghost" data-action="playbook" data-id="${p.id}" title="Copy playbook as Markdown">📋 Playbook</button>` : ''}
+            <span class="hint">${exps.length} action${exps.length === 1 ? '' : 's'} · ${won} worked</span>
+            ${exps.length ? `<button class="btn small ghost" data-action="playbook" data-id="${p.id}" title="Copy playbook as Markdown">Copy playbook</button>` : ''}
             <button class="btn small ghost" data-action="edit-project" data-id="${p.id}">⋯</button>
           </div>
         </div>
@@ -831,20 +827,20 @@ function renderMap() {
         const learnedW = (Math.max(0, r.learned - r.applied) / max) * 100;
         return `<div class="bar-row"><span class="name" style="color:${r.color}">${esc(r.name)}</span>
           <span class="bar"><i style="width:${appliedW}%;background:${r.color}"></i><i style="width:${learnedW}%;background:${r.color};opacity:.3"></i></span>
-          <span class="num" title="learned · applied · in queue">${r.learned} · ${r.applied}${r.backlog ? ` · <span title="in queue">⏳${r.backlog}</span>` : ''}</span></div>`;
+          <span class="num" title="learned · applied · in queue">${r.learned} · ${r.applied}${r.backlog ? ` · <span title="in queue">+${r.backlog} queued</span>` : ''}</span></div>`;
       }).join('')}</div>` : '<p class="hint">Nothing in this window yet.</p>'}
     </div>
 
-    ${spots.length ? `<div class="card"><h2>Blind spots 👀</h2>
+    ${spots.length ? `<div class="card"><h2>Blind spots</h2>
       <p class="sub">You keep <b>saving</b> these but haven't <b>learned</b> from them in this window:</p>
       <div class="chips" style="margin-top:8px">${spots.map(r => `<button class="chip" style="--c:${r.color}" data-action="goto-topic" data-id="${r.id}">${esc(r.name)} · ${r.backlog} waiting</button>`).join('')}</div></div>` : ''}
 
-    ${wins.length ? `<div class="card"><h2>Wins wall 🏆</h2>${wins.map(e => {
+    ${wins.length ? `<div class="card"><h2>What worked</h2>${wins.map(e => {
       const v = videoById(e.videoId);
       const p = projectMap().get(e.projectId);
       return `<div class="exp"><div class="plan">${esc(e.plan)}</div>
         <div class="from">${p ? `<b style="color:${p.color}">${esc(p.name)}</b> · ` : ''}${v ? staticTopicChips(v.topics.slice(0, 2)) : ''}</div>
-        ${e.result ? `<div class="result">🏆 ${esc(e.result)}</div>` : ''}</div>`;
+        ${e.result ? `<div class="result">${esc(e.result)}</div>` : ''}</div>`;
     }).join('')}</div>` : ''}
 
     <div class="card"><h2>Knowledge bank</h2>
@@ -918,7 +914,7 @@ document.addEventListener('click', e => {
       if (!step) return;
       step.done = el.checked;
       const left = v.actions.filter(a => !a.done).length;
-      return commit(step.done ? (left ? `Nice — ${left} step${left > 1 ? 's' : ''} left` : 'All action points done 🏆') : '');
+      return commit(step.done ? (left ? `Nice — ${left} step${left > 1 ? 's' : ''} left` : 'All action points done') : '');
     }
     case 'paste': return pasteFromClipboard();
   }

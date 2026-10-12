@@ -5,22 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Reel2Real</title>
   <meta name="description" content="Turn saved reels and YouTube videos into learnings, experiments and wins on your real projects.">
-  <meta name="theme-color" content="#0b0d12">
+  <meta name="theme-color" content="#f3f4f0">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="top">
-    <div class="brand">
-      <img src="icon.svg" alt="" width="28" height="28">
-      <span>Reel<b>2</b>Real</span>
-    </div>
+    <div class="brand"><img src="icon.svg" alt="" width="22" height="22"><span>Reel2Real</span></div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="today" class="active">Tracker</button>
+      <button data-tab="library">Videos</button>
+      <button data-tab="lab">Projects</button>
+      <button data-tab="map">Insights</button>
+    </nav>
     <div class="vitals" id="vitals"></div>
-    <button class="icon-btn" data-action="open-settings" aria-label="Settings">⚙︎</button>
+    <button class="icon-btn" data-action="open-settings">Settings</button>
   </header>
 
   <main>
@@ -30,12 +35,6 @@
     <section id="view-map" class="view" data-view="map" hidden></section>
   </main>
 
-  <nav class="tabs" id="tabs">
-    <button data-tab="today" class="active"><span>⚡</span>Today</button>
-    <button data-tab="library"><span>🎞️</span>Library</button>
-    <button data-tab="lab"><span>🧪</span>Lab</button>
-    <button data-tab="map"><span>🧠</span>Brain</button>
-  </nav>
 
   <dialog id="modal"><form method="dialog" id="modal-body"></form></dialog>
   <dialog id="confirm" class="confirm"><form method="dialog">
