@@ -19,6 +19,8 @@ plus **blind spots**: topics you keep saving but never actually learn.
 
 ## Use it
 
+**Lovable version (public website, own login + AI):** https://lovable.dev/projects/a04eb73d-0ad2-4a30-b37e-e10796f2be56
+
 **Web app (synced across laptop + phone):** https://claude.ai/artifact/9nhgghFcCHUDdHQ21RiCx9.
 Sign in to claude.ai and open it on any device. Your data is saved privately to your Claude account.
 Rebuild + republish with `npm run build:standalone` → `dist/reel2real-web.html`.
