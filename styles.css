@@ -208,3 +208,35 @@ code { font-size: 12px; word-break: break-all; background: var(--panel-2); paddi
 .player { margin-top: 10px; border-radius: 12px; overflow: hidden; background: #000; max-width: 400px; }
 .player iframe { display: block; width: 100%; aspect-ratio: 9 / 16; max-height: 70vh; border: 0; }
 .ai-box { padding: 12px; border-radius: 12px; border: 1px dashed var(--accent); }
+.todo { margin-top: 10px; padding: 12px; border-radius: 12px; background: var(--panel-2); display: grid; gap: 8px; }
+.todo small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.todo.empty { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: transparent; border: 1px dashed var(--line); }
+.todo.working { color: var(--muted); font-weight: 600; }
+.todo .teaches { margin: 0; }
+.todo ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.todo li label, .todo-feed .step { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.todo input[type=checkbox], .todo-feed input[type=checkbox] { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+.todo li.done span { text-decoration: line-through; color: var(--muted); }
+.todo .where { font-size: 13px; }
+.todo-feed { display: grid; gap: 12px; }
+.todo-feed .step small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.exp .plan { white-space: pre-line; }
+.vhead { display: flex; align-items: center; gap: 10px; }
+.vhead .vtitle { flex: 1; min-width: 0; }
+.vhead .title { overflow-wrap: anywhere; }
+.card.video { display: block; }
+.flow { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.flow .step { background: var(--panel-2); border-radius: 12px; padding: 10px 12px; border-left: 3px solid var(--line); display: grid; gap: 6px; }
+.flow .step.on { border-left-color: var(--good); }
+.flow h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.flow h4 span { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--line); color: var(--text); font-size: 11px; }
+.flow .step.on h4 span { background: var(--good); color: #fff; }
+.flow h4 em { font-style: normal; margin-left: auto; text-transform: none; letter-spacing: 0; }
+.flow p { margin: 0; }
+.flow .muted { color: var(--muted); }
+.flow .btn { justify-self: start; }
+.flow ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.flow li label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.flow input[type=checkbox] { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--good); flex: none; }
+.flow li.done span { text-decoration: line-through; color: var(--muted); }
+.cap-label { font-weight: 800; font-size: 16px; }

@@ -210,6 +210,38 @@ code { font-size: 12px; word-break: break-all; background: var(--panel-2); paddi
 .player { margin-top: 10px; border-radius: 12px; overflow: hidden; background: #000; max-width: 400px; }
 .player iframe { display: block; width: 100%; aspect-ratio: 9 / 16; max-height: 70vh; border: 0; }
 .ai-box { padding: 12px; border-radius: 12px; border: 1px dashed var(--accent); }
+.todo { margin-top: 10px; padding: 12px; border-radius: 12px; background: var(--panel-2); display: grid; gap: 8px; }
+.todo small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.todo.empty { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: transparent; border: 1px dashed var(--line); }
+.todo.working { color: var(--muted); font-weight: 600; }
+.todo .teaches { margin: 0; }
+.todo ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.todo li label, .todo-feed .step { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.todo input[type=checkbox], .todo-feed input[type=checkbox] { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
+.todo li.done span { text-decoration: line-through; color: var(--muted); }
+.todo .where { font-size: 13px; }
+.todo-feed { display: grid; gap: 12px; }
+.todo-feed .step small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.exp .plan { white-space: pre-line; }
+.vhead { display: flex; align-items: center; gap: 10px; }
+.vhead .vtitle { flex: 1; min-width: 0; }
+.vhead .title { overflow-wrap: anywhere; }
+.card.video { display: block; }
+.flow { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.flow .step { background: var(--panel-2); border-radius: 12px; padding: 10px 12px; border-left: 3px solid var(--line); display: grid; gap: 6px; }
+.flow .step.on { border-left-color: var(--good); }
+.flow h4 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.flow h4 span { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--line); color: var(--text); font-size: 11px; }
+.flow .step.on h4 span { background: var(--good); color: #fff; }
+.flow h4 em { font-style: normal; margin-left: auto; text-transform: none; letter-spacing: 0; }
+.flow p { margin: 0; }
+.flow .muted { color: var(--muted); }
+.flow .btn { justify-self: start; }
+.flow ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.flow li label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.flow input[type=checkbox] { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--good); flex: none; }
+.flow li.done span { text-decoration: line-through; color: var(--muted); }
+.cap-label { font-weight: 800; font-size: 16px; }
 
 .top { top: env(safe-area-inset-top, 0px); padding-top: 10px; }
 </style>
@@ -877,8 +909,82 @@ ${raw}`, { modelTier: 'quick' });
   } finally { btn.disabled = false; }
 }
 
+// ---------- action points: what to do with a video, and in which project ----------
+const aiBusy = new Set();
+
+async function generateActions(id, { silent = false } = {}) {
+  const v = videoById(id);
+  if (!v) return;
+  const source = [v.title, v.note].filter(Boolean).join('\n').trim();
+  if (source.length < 12) {
+    if (!silent) askForCaption(id);
+    return;
+  }
+  const sample = IN_ARTIFACT ? await window.claude.use('sample') : null;
+  if (!sample) {
+    if (!silent) toast('Automatic action points work in the Claude web app. Here, add them with ⋯ → Action points.');
+    return;
+  }
+  aiBusy.add(id);
+  render();
+  const topics = allTopics(state).map(t => `${t.id} = ${t.name}`).join(', ');
+  const projects = state.projects.length
+    ? state.projects.map(p => `- id "${p.id}": ${p.name}${p.context ? ` (${p.context})` : ''}`).join('\n')
+    : '(none yet)';
+  try {
+    const out = await sample.json(`You turn short marketing knowledge videos (Instagram reels, YouTube) into things a digital marketer will actually DO.
+Video notes (caption or the user's own words):
+${source}
+
+The user's projects:
+${projects}
+
+Return JSON only:
+{"title": string (max 8 words, what the video teaches),
+ "summary": string (what the video teaches, max 35 words),
+ "actions": string[] (3 to 5 concrete steps to implement it, each max 20 words, start with a verb, in order),
+ "projectId": string (id of the project where this fits best, or "" if none fit),
+ "why": string (max 20 words: why that project, or "" if none),
+ "topics": string[] (1-2 ids from: ${topics})}
+Use only what the notes say; do not invent statistics or claims. If the notes are too thin, keep steps general and say so in summary.`, { modelTier: 'default' });
+    const cur = videoById(id);
+    if (!cur) return;
+    if (out.title && !cur.title) cur.title = String(out.title).slice(0, 80);
+    if (out.summary) cur.summary = String(out.summary);
+    if (!cur.insight && out.summary) Object.assign(cur, advance(cur, 'learned', { insight: String(out.summary) }));
+    if (Array.isArray(out.actions)) cur.actions = out.actions.filter(Boolean).slice(0, 6).map(text => ({ text: String(text), done: false }));
+    cur.projectId = state.projects.some(p => p.id === out.projectId) ? out.projectId : '';
+    cur.projectWhy = cur.projectId ? String(out.why || '') : '';
+    if (Array.isArray(out.topics) && !cur.topics.length) cur.topics = out.topics.filter(t => allTopics(state).some(x => x.id === t));
+    aiBusy.delete(id);
+    commit('Action points ready ✅');
+  } catch (err) {
+    aiBusy.delete(id);
+    render();
+    if (!silent || err?.code !== 'not_granted') toast(err?.code === 'not_granted' ? 'AI permission was declined' : 'Could not create action points — tap “Get action points” to retry');
+  }
+}
+
+function askForCaption(id) {
+  const v = videoById(id);
+  openModal(`
+    <h3>✨ Get action points</h3>
+    <p class="sub">The AI can't watch the video, so give it the words. In Instagram, open the reel → tap the caption → copy it. Or type what the video said in 2–3 lines.</p>
+    <div class="field" style="margin-top:14px"><label>Caption or what the video said</label>
+      <textarea name="note" required autofocus placeholder="e.g. Meta's Andromeda update: use 10-15 very different creatives in one broad ad set, stop splitting audiences…">${esc(v.note)}</textarea></div>
+    <div class="row end" style="margin-top:16px">
+      <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" value="ok">✨ Get action points</button>
+    </div>`, fd => {
+    videoById(id).note = fd.get('note').trim();
+    save();
+    generateActions(id);
+  });
+}
+
 function openApply(videoId, presetProject) {
   const v = videoById(videoId);
+  presetProject = presetProject || v.projectId;
   const hasProjects = state.projects.length > 0;
   openModal(`
     <h3>🚀 Apply to a project</h3>
@@ -889,7 +995,7 @@ function openApply(videoId, presetProject) {
         <input name="newProject" placeholder="New project name, e.g. My Website" ${hasProjects ? 'style="margin-top:8px"' : 'required autofocus'}>
         ${hasProjects ? '<div class="hint">Only needed if you picked “New project”.</div>' : ''}</div>
       <div class="field"><label>What exactly will you do?</label>
-        <textarea name="plan" required ${hasProjects ? 'autofocus' : ''} placeholder="Concrete action, e.g. Add a 40-word answer block + FAQ schema to the pricing page">${esc(v.idea)}</textarea></div>
+        <textarea name="plan" required ${hasProjects ? 'autofocus' : ''} placeholder="Concrete action, e.g. Add a 40-word answer block + FAQ schema to the pricing page">${esc(v.idea || (v.actions || []).filter(a => !a.done).map(a => `• ${a.text}`).join('\n'))}</textarea></div>
       <div class="field"><label>Status</label>
         <select name="status"><option value="queued">⏳ Queued</option><option value="testing">🧪 Testing now</option></select></div>
     </div>
@@ -920,6 +1026,7 @@ function openEdit(id) {
       <div class="field"><label>Topics</label>${topicChips(v.topics)}</div>
       <div class="field"><label>What I learned</label><textarea name="insight">${esc(v.insight)}</textarea></div>
       <div class="field"><label>How I could use it</label><textarea name="idea">${esc(v.idea)}</textarea></div>
+      <div class="field"><label>Action points (one per line)</label><textarea name="actions" placeholder="Write the steps to implement it">${esc((v.actions || []).map(a => a.text).join('\n'))}</textarea></div>
       <div class="field"><label>Stage</label><select name="stage">
         ${['saved', 'watched', 'learned'].map(s => `<option ${v.stage === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
     </div>
@@ -940,6 +1047,8 @@ function openEdit(id) {
     const updated = advance(state.videos[i], fd.get('stage'), {
       title: fd.get('title').trim(), note: fd.get('note').trim(), topics: fd.getAll('topics'),
       insight: fd.get('insight').trim(), idea: fd.get('idea').trim(),
+      actions: fd.get('actions').split('\n').map(t => t.replace(/^[•\-*\d.)\s]+/, '').trim()).filter(Boolean)
+        .map(text => (v.actions || []).find(a => a.text === text) || { text, done: false }),
     });
     if (url !== v.url) Object.assign(updated, { url, key: normalizeUrl(url), platform: detectPlatform(url) });
     state.videos[i] = updated;
@@ -1096,38 +1205,62 @@ function applyTheme() {
 }
 
 // ---------- rendering ----------
+// One video = one learning tracker: ① what I learned → ② action points → ③ project.
 function videoCard(v) {
   const exps = expsFor(v.id);
-  const won = exps.filter(e => e.status === 'won').length;
-  const steps = [true, !!v.watchedAt, !!v.learnedAt, exps.length > 0];
-  let actions = '';
-  if (v.stage === 'saved') {
-    actions = `
-      <button class="btn small" data-action="watched" data-id="${v.id}">✓ Watched</button>
-      <button class="btn small primary" data-action="learn" data-id="${v.id}">💡 I learned…</button>`;
-  } else if (v.stage === 'watched') {
-    actions = `<button class="btn small primary" data-action="learn" data-id="${v.id}">💡 Capture the learning</button>`;
+  const pm = projectMap();
+  const steps = v.actions || [];
+  const doneSteps = steps.filter(a => a.done).length;
+  const busy = aiBusy.has(v.id);
+  const proj = pm.get(v.projectId) || pm.get(exps[0]?.projectId);
+  const statusOf = id => EXP_STATUSES.find(x => x.id === id);
+
+  const learned = busy ? '<p class="muted">✨ Reading the caption…</p>'
+    : v.insight
+      ? `<p>${esc(v.insight)}</p>`
+      : `<p class="muted">Not filled yet.</p>
+         <button class="btn small primary" data-action="${IN_ARTIFACT ? 'gen-actions' : 'learn'}" data-id="${v.id}">${IN_ARTIFACT ? '✨ Fill steps 1–3 for me' : '✍️ Write what I learned'}</button>`;
+
+  const todo = busy ? '<p class="muted">✨ Working out the steps…</p>'
+    : steps.length
+      ? `<ul>${steps.map((a, i) => `<li class="${a.done ? 'done' : ''}"><label>
+          <input type="checkbox" data-action="toggle-step" data-id="${v.id}" data-i="${i}" ${a.done ? 'checked' : ''}><span>${esc(a.text)}</span></label></li>`).join('')}</ul>`
+      : `<p class="muted">No steps yet.</p>${v.insight ? `<button class="btn small" data-action="${IN_ARTIFACT ? 'gen-actions' : 'edit'}" data-id="${v.id}">${IN_ARTIFACT ? '✨ Get action points' : '✍️ Add steps'}</button>` : ''}`;
+
+  let where;
+  if (exps.length) {
+    where = exps.map(e => {
+      const p = pm.get(e.projectId);
+      const st = statusOf(e.status);
+      return `<p><b style="color:${p?.color || 'inherit'}">${esc(p?.name || 'Project')}</b> · ${st.emoji} ${st.label}${e.result ? ` — ${esc(e.result)}` : ''}</p>`;
+    }).join('') + '<p class="hint">Update the status in the Lab tab.</p>';
+  } else if (busy) {
+    where = '<p class="muted">✨ Picking the best project…</p>';
+  } else if (!state.projects.length) {
+    where = `<p class="muted">You haven't added any projects yet.</p><button class="btn small" data-action="new-project">+ Add my first project</button>`;
   } else {
-    actions = `<button class="btn small primary" data-action="apply" data-id="${v.id}">🚀 Apply to project</button>`;
+    where = `${proj ? `<p>Best fit: <b style="color:${proj.color}">${esc(proj.name)}</b>${v.projectWhy ? ` — ${esc(v.projectWhy)}` : ''}</p>` : '<p class="muted">Not linked to a project yet.</p>'}
+      <button class="btn small primary" data-action="apply" data-id="${v.id}">🚀 Start in ${proj ? esc(proj.name) : 'a project'}</button>`;
   }
+
+  const stepClass = n => (n === 1 ? v.insight : n === 2 ? steps.length && doneSteps === steps.length : exps.length) ? 'step on' : 'step';
   return `
   <article class="card video">
-    <a class="plat ${v.platform}" href="${esc(v.url)}" target="_blank" rel="noopener" title="Open video">${PLATFORM_ICON[v.platform] || '🔗'}</a>
-    <div>
-      <div class="title">${esc(displayTitle(v))}</div>
-      ${!v.title && !v.note ? `<div class="hint">Add a few words so you remember what it's about → <button class="linkish" data-action="edit" data-id="${v.id}">add note</button></div>` : ''}
-      <div class="meta">${v.platform} · saved ${ago(v.addedAt)}${v.learnedAt ? ` · learned ${ago(v.learnedAt)}` : ''}${exps.length ? ` · ${exps.length} experiment${exps.length > 1 ? 's' : ''}${won ? ` · ${won} 🏆` : ''}` : ''}</div>
-      ${v.topics.length ? `<div class="chips" style="margin-top:6px">${staticTopicChips(v.topics)}</div>` : ''}
-      <div class="track" title="Saved → Watched → Learned → Applied">${steps.map(s => `<i class="${s ? 'on' : ''}"></i>`).join('')}</div>
-      <div class="player" id="player-${v.id}" hidden></div>
-      ${v.insight ? `<div class="insight"><small>Learned</small>${esc(v.insight)}${v.idea ? `<div class="hint" style="margin-top:4px">→ ${esc(v.idea)}</div>` : ''}</div>` : ''}
-      <div class="actions">
-        <a class="btn small watch" href="${esc(v.url)}" target="_blank" rel="noopener">▶ Watch on ${PLATFORM_NAME[v.platform]}</a>
-        ${!IN_ARTIFACT && embedUrl(v.url) ? `<button class="btn small ghost" data-action="play" data-id="${v.id}">Play here</button>` : ''}
-        ${actions}
-        <button class="btn small ghost" data-action="edit" data-id="${v.id}" aria-label="Edit">⋯</button>
+    <header class="vhead">
+      <a class="plat ${v.platform}" href="${esc(v.url)}" target="_blank" rel="noopener" title="Watch">${PLATFORM_ICON[v.platform] || '🔗'}</a>
+      <div class="vtitle">
+        <div class="title">${esc(displayTitle(v))}</div>
+        <div class="meta">${PLATFORM_NAME[v.platform]} · saved ${ago(v.addedAt)}${v.topics.length ? ' · ' : ''}${v.topics.map(t => esc(topicMap().get(t)?.name || '')).filter(Boolean).join(', ')}</div>
       </div>
-    </div>
+      <a class="btn small watch" href="${esc(v.url)}" target="_blank" rel="noopener">▶ Watch</a>
+      <button class="btn small ghost" data-action="edit" data-id="${v.id}" aria-label="Edit">⋯</button>
+    </header>
+    ${!IN_ARTIFACT && embedUrl(v.url) ? `<button class="linkish" data-action="play" data-id="${v.id}">Play here</button><div class="player" id="player-${v.id}" hidden></div>` : ''}
+    <ol class="flow">
+      <li class="${stepClass(1)}"><h4><span>1</span>What I learned</h4>${learned}</li>
+      <li class="${stepClass(2)}"><h4><span>2</span>Action points${steps.length ? ` <em>${doneSteps}/${steps.length} done</em>` : ''}</h4>${todo}</li>
+      <li class="${stepClass(3)}"><h4><span>3</span>Project</h4>${where}</li>
+    </ol>
   </article>`;
 }
 
@@ -1144,46 +1277,39 @@ function renderVitals() {
 function captureCard(prefill = {}) {
   return `
   <form class="card capture stack" id="capture">
-    <input type="text" name="url" placeholder="Paste an Instagram reel or YouTube link" value="${esc(prefill.url)}" inputmode="url" autocomplete="off">
-    <textarea name="note" placeholder="What's it about? Paste the caption or jot 3 words — topics get auto-tagged">${esc(prefill.note)}</textarea>
+    <label class="cap-label" for="cap-url">Add a video</label>
+    <input type="text" id="cap-url" name="url" placeholder="1. Paste the Instagram or YouTube link" value="${esc(prefill.url)}" inputmode="url" autocomplete="off">
+    <textarea name="note" placeholder="2. Paste the caption (or type what the video says) — the AI needs this to write your action points">${esc(prefill.note)}</textarea>
     ${topicChips(prefill.topics || [])}
     <div class="row end">
       ${navigator.clipboard?.readText && !IN_ARTIFACT ? '<button class="btn" type="button" data-action="paste" style="margin-right:auto">📋 Paste link</button>' : ''}
-      <button class="btn" type="submit" name="mode" value="learn">Watched it → log learning</button>
-      <button class="btn primary" type="submit" name="mode" value="save">Save to queue</button>
+      <button class="btn primary" type="submit" name="mode" value="save">${IN_ARTIFACT ? '✨ Add video & get action points' : 'Add video'}</button>
     </div>
   </form>`;
 }
 
 let pendingShare = null;
 function renderToday() {
-  const week = periodStats(state, 7);
-  const picks = todaysPicks(state, 3);
-  const unapplied = state.videos.filter(v => v.stage === 'learned' && !expsFor(v.id).length).slice(0, 3);
-  const testing = state.experiments.filter(e => e.status === 'testing').slice(0, 3);
-  const hour = new Date().getHours();
-  const hello = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const backlog = state.videos.filter(v => v.stage === 'saved').length;
+  const isComplete = v => v.insight && (v.actions || []).length && v.actions.every(a => a.done) && expsFor(v.id).length;
+  const open = state.videos.filter(v => !isComplete(v));
+  const nextSteps = state.videos.flatMap(v => (v.actions || []).map((a, i) => ({ v, a, i })).filter(x => !x.a.done)).slice(0, 8);
+  const stepsLeft = state.videos.reduce((n, v) => n + (v.actions || []).filter(a => !a.done).length, 0);
 
   $('#view-today').innerHTML = `
     <div>
-      <p class="sub">${hello} 👋</p>
-      <p class="hero">${backlog ? `<em>${backlog}</em> saved reel${backlog > 1 ? 's' : ''} waiting. Let's turn ${Math.min(3, backlog)} into knowledge.` : state.videos.length ? 'Queue clear. <em>Go apply something.</em>' : 'Stop saving reels. <em>Start using them.</em>'}</p>
+      <p class="hero">${state.videos.length ? `<em>${stepsLeft}</em> action point${stepsLeft === 1 ? '' : 's'} to do · <em>${open.length}</em> video${open.length === 1 ? '' : 's'} in progress` : 'Turn saved videos into <em>action points</em> for your projects.'}</p>
+      <p class="sub">Every video goes through 3 steps: <b>① what I learned</b> → <b>② action points</b> → <b>③ project</b>.</p>
     </div>
     ${captureCard(pendingShare || {})}
-    <div class="stats">
-      <div class="stat"><b>${week.watched}</b><span>Watched 7d</span></div>
-      <div class="stat"><b>${week.learned}</b><span>Learned 7d</span></div>
-      <div class="stat"><b>${week.applied}</b><span>Applied 7d</span></div>
-      <div class="stat"><b>${week.won}</b><span>Wins 7d</span></div>
-    </div>
-    ${picks.length ? `<h2>Today's ${picks.length} — watch, then log one learning each</h2>${picks.map(videoCard).join('')}` : ''}
-    ${unapplied.length ? `<h2>Learned but not used yet</h2>${unapplied.map(videoCard).join('')}` : ''}
-    ${testing.length ? `<h2>Testing right now</h2><div class="card">${testing.map(expRow).join('')}</div>` : ''}
+    ${nextSteps.length ? `<h2>My action points</h2><div class="card todo-feed">${nextSteps.map(({ v, a, i }) => {
+      const p = projectMap().get(v.projectId);
+      return `<label class="step"><input type="checkbox" data-action="toggle-step" data-id="${v.id}" data-i="${i}">
+        <span>${esc(a.text)}<small>${p ? `<b style="color:${p.color}">${esc(p.name)}</b> · ` : ''}from: ${esc(displayTitle(v))}</small></span></label>`;
+    }).join('')}</div>` : ''}
+    ${open.length ? `<h2>Videos in progress</h2>${open.map(videoCard).join('')}` : ''}
     ${!state.videos.length ? `
-      <div class="card empty"><div class="big">🎬 → 💡 → 🚀 → 🏆</div>
-        <p><b>Save</b> a reel · <b>Learn</b> one thing from it · <b>Apply</b> it to a project · <b>Log</b> the win.</p>
-        <p class="hint">Tip: install this app on your phone, then share reels straight from Instagram.</p></div>` : ''}`;
+      <div class="card empty"><div class="big">🎬 → 💡 → ✅ → 🚀</div>
+        <p>Paste a video link and its caption above. You'll get <b>what it teaches</b>, <b>action points</b>, and <b>which project</b> to use it in.</p></div>` : ''}`;
   wireCapture();
 }
 
@@ -1217,6 +1343,7 @@ function wireCapture() {
     const v = addVideo({ url: form.url.value, note: form.note.value, topics: new FormData(form).getAll('topics') });
     if (!v) { pendingShare = shared; return; }
     if (e.submitter?.value === 'learn') openLearn(v.id);
+    else if (IN_ARTIFACT && !v.actions?.length) generateActions(v.id);
   });
 }
 
@@ -1432,6 +1559,15 @@ document.addEventListener('click', e => {
     case 'goto-topic': ui.topic = id; ui.stage = 'saved'; return go('library');
     case 'open-settings': return openSettings();
     case 'ai-fill': return aiFill(id, el);
+    case 'gen-actions': return generateActions(id);
+    case 'toggle-step': {
+      const v = videoById(id);
+      const step = v?.actions?.[Number(el.dataset.i)];
+      if (!step) return;
+      step.done = el.checked;
+      const left = v.actions.filter(a => !a.done).length;
+      return commit(step.done ? (left ? `Nice — ${left} step${left > 1 ? 's' : ''} left` : 'All action points done 🏆') : '');
+    }
     case 'paste': return pasteFromClipboard();
   }
 });
