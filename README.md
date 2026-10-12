@@ -19,6 +19,11 @@ plus **blind spots**: topics you keep saving but never actually learn.
 
 ## Use it
 
+**Web app (synced across laptop + phone):** https://claude.ai/artifact/9nhgghFcCHUDdHQ21RiCx9.
+Sign in to claude.ai and open it on any device. Your data is saved privately to your Claude account.
+Rebuild + republish with `npm run build:standalone` → `dist/reel2real-web.html`.
+
+
 It's a static web app (no server, no account, no build step). Your data stays in your browser's local storage.
 Export a JSON backup from ⚙︎ Settings from time to time.
 

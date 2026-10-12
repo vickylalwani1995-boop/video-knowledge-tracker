@@ -1,7 +1,7 @@
 import {
   allTopics, emptyState, extractUrl, extractUrls, detectPlatform, normalizeUrl, suggestTopics, createVideo, findDuplicate, advance,
   createExperiment, setExperimentStatus, periodStats, topicStats, blindSpots, learningStreak, totalXp,
-  levelFor, todaysPicks, projectPlaybook, mergeState, uid, EXP_STATUSES, XP,
+  levelFor, todaysPicks, projectPlaybook, mergeState, uid, EXP_STATUSES, XP, toDocs, fromDocs, diffDocs,
 } from './core.js';
 
 const STORE_KEY = 'reel2real:v1';
@@ -15,8 +15,59 @@ const ui = { tab: 'today', stage: 'all', topic: 'all', q: '', period: 10, ...(lo
 function load(key) {
   try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
 }
+// Inside a claude.ai Artifact the page gets `window.claude`; there we sync to the account (db capability).
+const IN_ARTIFACT = typeof window.claude?.use === 'function';
+
 function save() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { toast('Could not save — storage is full or blocked'); }
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { if (!IN_ARTIFACT) toast('Could not save — storage is full or blocked'); }
+  schedulePush();
+}
+
+// ---------- cloud sync (Artifact only): one private document per record under data/users/<you> ----------
+const cloud = { col: null, remote: new Map(), ready: false, timer: null, chain: Promise.resolve(), failed: false };
+
+function schedulePush() {
+  if (!cloud.ready) return;
+  clearTimeout(cloud.timer);
+  cloud.timer = setTimeout(() => { cloud.chain = cloud.chain.then(pushNow); }, 400);
+}
+
+async function pushNow() {
+  const { set, del } = diffDocs(toDocs(state), cloud.remote);
+  try {
+    for (const [key, body] of set) { await cloud.col.doc(key).set(body); cloud.remote.set(key, body); }
+    for (const key of del) { await cloud.col.doc(key).delete(); cloud.remote.delete(key); }
+    if (cloud.failed) { cloud.failed = false; renderVitals(); }
+  } catch (err) {
+    cloud.failed = true;
+    renderVitals();
+    toast(err?.code === 'quota_exceeded' ? 'Cloud storage is full — export a backup and delete old videos' : 'Could not sync — your changes are kept on this device and will retry');
+  }
+}
+
+async function connectCloud() {
+  if (!IN_ARTIFACT) return;
+  const [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]);
+  const id = db && user ? await user.id() : null;
+  if (!id) return;
+  cloud.col = db.collection(`data/users/${id}`);
+  cloud.col.onSnapshot(snap => {
+    if (snap.metadata.fromCache && !cloud.ready) return;
+    const docs = snap.docs.map(d => ({ id: d.id, body: d.data() }));
+    cloud.remote = new Map(docs.map(d => [d.id, d.body]));
+    if (!cloud.ready) {
+      cloud.ready = true;
+      // First sync on a device: an empty account adopts what this browser already has.
+      if (snap.empty && state.videos.length + state.projects.length) { schedulePush(); renderVitals(); return; }
+    }
+    if (snap.metadata.hasPendingWrites) return;
+    const next = fromDocs(docs);
+    if (diffDocs(toDocs(next), toDocs(state)).set.length || diffDocs(toDocs(state), toDocs(next)).set.length) {
+      state = next;
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* cache only */ }
+      render();
+    } else renderVitals();
+  }, () => { cloud.ready = false; cloud.failed = true; renderVitals(); });
 }
 function saveUi() {
   try { localStorage.setItem(UI_KEY, JSON.stringify({ tab: ui.tab, period: ui.period, theme: ui.theme })); } catch { /* optional */ }
@@ -95,13 +146,22 @@ function closeModal() {
   $('#modal').close();
   modalHandler = null;
 }
+// In-page confirm: browsers inside some frames (e.g. Artifacts) ignore window.confirm().
+function askConfirm(message, okLabel = 'Delete') {
+  const dlg = $('#confirm');
+  dlg.querySelector('p').textContent = message;
+  dlg.querySelector('button[value=ok]').textContent = okLabel;
+  dlg.returnValue = '';
+  dlg.showModal();
+  return new Promise(resolve => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'ok'), { once: true }));
+}
+
 $('#modal-body').addEventListener('submit', e => {
   e.preventDefault();
   const action = e.submitter?.value || 'ok';
   if (action === 'cancel' || !modalHandler) return closeModal();
   const fd = new FormData(e.target);
-  const keep = modalHandler(fd, action);
-  if (keep !== true) closeModal();
+  Promise.resolve(modalHandler(fd, action)).then(keep => { if (keep !== true) closeModal(); });
 });
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 
@@ -221,10 +281,10 @@ function openEdit(id) {
       <span style="flex:1"></span>
       <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
       <button class="btn primary" value="ok">Save</button>
-    </div>`, (fd, action) => {
+    </div>`, async (fd, action) => {
     const i = state.videos.findIndex(x => x.id === id);
     if (action === 'delete') {
-      if (!confirm('Delete this video and its experiments?')) return true;
+      if (!(await askConfirm('Delete this video and its experiments?'))) return true;
       state.videos.splice(i, 1);
       state.experiments = state.experiments.filter(e => e.videoId !== id);
       return commit('Deleted');
@@ -259,9 +319,9 @@ function openProject(id) {
       <span style="flex:1"></span>
       <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
       <button class="btn primary" value="ok">${p ? 'Save' : 'Add project'}</button>
-    </div>`, (fd, action) => {
+    </div>`, async (fd, action) => {
     if (action === 'delete') {
-      if (!confirm(`Delete ${p.name} and its experiments? Your videos & learnings stay.`)) return true;
+      if (!(await askConfirm(`Delete ${p.name} and its experiments? Your videos & learnings stay.`))) return true;
       state.projects = state.projects.filter(x => x.id !== id);
       state.experiments = state.experiments.filter(e => e.projectId !== id);
       return commit('Project deleted');
@@ -314,8 +374,8 @@ function openSettings() {
   openModal(`
     <h3>Settings</h3>
     <div class="stack" style="margin-top:14px">
-      <div class="field"><label>Theme</label>
-        <select name="theme">${['auto', 'dark', 'light'].map(t => `<option ${(ui.theme || 'auto') === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>
+      ${IN_ARTIFACT ? '' : `<div class="field"><label>Theme</label>
+        <select name="theme">${['auto', 'dark', 'light'].map(t => `<option ${(ui.theme || 'auto') === t ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`}
       <div class="field"><label>Add a custom topic</label>
         <input name="topicName" placeholder="e.g. Email Marketing">
         <input name="topicKeywords" placeholder="keywords, comma separated: newsletter, klaviyo, open rate" style="margin-top:8px"></div>
@@ -335,19 +395,21 @@ function openSettings() {
     <div class="row end" style="margin-top:16px">
       <button class="btn ghost" value="cancel" formnovalidate>Close</button>
       <button class="btn primary" value="ok">Save</button>
-    </div>`, (fd, action) => {
+    </div>`, async (fd, action) => {
     if (action === 'export') {
-      download(`reel2real-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(state, null, 2));
+      await exportBackup();
       return true;
     }
     if (action === 'wipe') {
-      if (!confirm('Delete every video, learning, project and experiment? This cannot be undone.')) return true;
+      if (!(await askConfirm('Delete every video, learning, project and experiment? This cannot be undone.', 'Wipe everything'))) return true;
       state = emptyState();
       return commit('Everything wiped');
     }
-    ui.theme = fd.get('theme');
-    applyTheme();
-    saveUi();
+    if (fd.has('theme')) {
+      ui.theme = fd.get('theme');
+      applyTheme();
+      saveUi();
+    }
     const name = fd.get('topicName').trim();
     if (name) {
       state.customTopics.push({
@@ -370,7 +432,18 @@ function openSettings() {
   });
 }
 
+async function exportBackup() {
+  const name = `reel2real-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const json = JSON.stringify(state, null, 2);
+  if (!IN_ARTIFACT) return download(name, json);
+  const dl = await window.claude.use('downloads');
+  if (!dl) return toast('Downloads are not available here');
+  try { await dl.save({ filename: name, data: json }); toast('Backup saved'); }
+  catch (err) { if (err?.code !== 'declined') toast('Could not save the backup'); }
+}
+
 function applyTheme() {
+  if (IN_ARTIFACT) return; // the Claude viewer controls light/dark
   if (ui.theme && ui.theme !== 'auto') document.documentElement.dataset.theme = ui.theme;
   else delete document.documentElement.dataset.theme;
 }
@@ -414,7 +487,8 @@ function renderVitals() {
   const streak = learningStreak(state);
   $('#vitals').innerHTML = `
     <span class="pill" title="Days in a row you learned something">🔥 ${streak}</span>
-    <span class="pill lvl xp" title="${lv.toNext} XP to next level">Lv ${lv.level} · ${xp} XP<i style="width:${Math.round(lv.progress * 100)}%"></i></span>`;
+    <span class="pill lvl xp" title="${lv.toNext} XP to next level">Lv ${lv.level} · ${xp} XP<i style="width:${Math.round(lv.progress * 100)}%"></i></span>
+    ${IN_ARTIFACT ? `<span class="pill" title="${cloud.ready && !cloud.failed ? 'Saved to your Claude account — same data on every device' : 'Saved on this device only'}">${cloud.ready && !cloud.failed ? '☁︎ Synced' : '⌂ Local'}</span>` : ''}`;
 }
 
 function captureCard(prefill = {}) {
@@ -424,7 +498,7 @@ function captureCard(prefill = {}) {
     <textarea name="note" placeholder="What's it about? Paste the caption or jot 3 words — topics get auto-tagged">${esc(prefill.note)}</textarea>
     ${topicChips(prefill.topics || [])}
     <div class="row end">
-      ${navigator.clipboard?.readText ? '<button class="btn" type="button" data-action="paste" style="margin-right:auto">📋 Paste link</button>' : ''}
+      ${navigator.clipboard?.readText && !IN_ARTIFACT ? '<button class="btn" type="button" data-action="paste" style="margin-right:auto">📋 Paste link</button>' : ''}
       <button class="btn" type="submit" name="mode" value="learn">Watched it → log learning</button>
       <button class="btn primary" type="submit" name="mode" value="save">Save to queue</button>
     </div>
@@ -510,7 +584,11 @@ function bulkAdd(urls) {
 async function pasteFromClipboard() {
   const form = $('#capture');
   let raw = '';
-  try { raw = await navigator.clipboard.readText(); } catch { /* denied */ }
+  try { raw = await navigator.clipboard.readText(); } catch {
+    form.url.focus();
+    toast('Paste the link into the box (Ctrl+V, or long-press → Paste)');
+    return;
+  }
   const urls = extractUrls(raw);
   if (!urls.length) { toast('No link on your clipboard — in Instagram/YouTube tap Share → Copy link first'); return; }
   if (urls.length > 1) return bulkAdd(urls);
@@ -677,7 +755,9 @@ document.addEventListener('click', e => {
     case 'edit': return openEdit(id);
     case 'status': return setStatus(id, el.dataset.status);
     case 'del-exp':
-      if (confirm('Remove this experiment?')) { state.experiments = state.experiments.filter(x => x.id !== id); commit(); }
+      askConfirm('Remove this experiment?', 'Remove').then(ok => {
+        if (ok) { state.experiments = state.experiments.filter(x => x.id !== id); commit('Experiment removed'); }
+      });
       return;
     case 'playbook': return copyPlaybook(id);
     case 'new-project': return openProject();
@@ -726,8 +806,9 @@ window.addEventListener('storage', e => { if (e.key === STORE_KEY) { state = loa
 applyTheme();
 ingestShare();
 render();
+connectCloud();
 if (pendingShare) toast(`Got it from ${detectPlatform(pendingShare.url)} — add a note & save`);
 
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+if ('serviceWorker' in navigator && location.protocol !== 'file:' && !IN_ARTIFACT) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }

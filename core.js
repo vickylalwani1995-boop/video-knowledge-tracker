@@ -315,3 +315,39 @@ export function mergeState(current, incoming) {
     customTopics: merge(current.customTopics, incoming.customTopics),
   };
 }
+
+// ---------- cloud sync shape: one small document per record ----------
+const KINDS = [['v', 'videos'], ['e', 'experiments'], ['p', 'projects'], ['t', 'customTopics']];
+
+/** state → Map of docKey → {kind, item}. Keys are stable, so a diff tells what to write. */
+export function toDocs(state) {
+  const out = new Map();
+  for (const [prefix, field] of KINDS) {
+    for (const item of state[field] || []) out.set(`${prefix}_${item.id}`, { kind: field, item });
+  }
+  return out;
+}
+
+/** Rebuild state from synced documents ({id, body}[]), newest videos/experiments first. */
+export function fromDocs(docs) {
+  const s = emptyState();
+  for (const { body } of docs) {
+    if (body && Array.isArray(s[body.kind]) && body.item?.id) s[body.kind].push(body.item);
+  }
+  s.videos.sort((a, b) => b.addedAt - a.addedAt);
+  s.experiments.sort((a, b) => b.createdAt - a.createdAt);
+  s.projects.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  return s;
+}
+
+/** What to write to make the remote match local: keys to set (with body) and keys to delete. */
+export function diffDocs(local, remote) {
+  const set = [];
+  const del = [];
+  for (const [key, body] of local) {
+    const prev = remote.get(key);
+    if (!prev || JSON.stringify(prev) !== JSON.stringify(body)) set.push([key, body]);
+  }
+  for (const key of remote.keys()) if (!local.has(key)) del.push(key);
+  return { set, del };
+}

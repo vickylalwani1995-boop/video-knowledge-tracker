@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  extractUrl, extractUrls, detectPlatform, normalizeUrl, suggestTopics, createVideo, advance, createExperiment,
+  extractUrl, extractUrls, detectPlatform, toDocs, fromDocs, diffDocs, normalizeUrl, suggestTopics, createVideo, advance, createExperiment,
   setExperimentStatus, emptyState, periodStats, topicStats, blindSpots, learningStreak, todaysPicks,
   projectPlaybook, totalXp, levelFor, findDuplicate, mergeState,
 } from '../core.js';
@@ -146,4 +146,18 @@ test('mergeState unions by id', () => {
 test('extractUrls handles a pasted list of YouTube links and drops duplicates', () => {
   const list = 'https://youtu.be/AAA\nhttps://www.youtube.com/watch?v=BBB&t=5\nhttps://www.youtube.com/watch?v=AAA (dup)';
   assert.deepEqual(extractUrls(list), ['https://youtu.be/AAA', 'https://www.youtube.com/watch?v=BBB&t=5']);
+});
+
+test('cloud docs round-trip and diff only what changed', () => {
+  const s = fixture();
+  const docs = toDocs(s);
+  assert.equal(docs.size, s.videos.length + s.experiments.length + s.projects.length);
+  const back = fromDocs([...docs].map(([id, body]) => ({ id, body })));
+  assert.equal(back.videos.length, s.videos.length);
+  assert.deepEqual(diffDocs(toDocs(back), docs), { set: [], del: [] });
+  back.videos[0] = { ...back.videos[0], insight: 'changed' };
+  back.projects = [];
+  const d = diffDocs(toDocs(back), docs);
+  assert.equal(d.set.length, 1);
+  assert.deepEqual(d.del, ['p_p1']);
 });
