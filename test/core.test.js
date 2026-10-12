@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  extractUrl, extractUrls, detectPlatform, toDocs, fromDocs, diffDocs, normalizeUrl, suggestTopics, createVideo, advance, createExperiment,
+  extractUrl, extractUrls, detectPlatform, embedUrl, linkLabel, toDocs, fromDocs, diffDocs, normalizeUrl, suggestTopics, createVideo, advance, createExperiment,
   setExperimentStatus, emptyState, periodStats, topicStats, blindSpots, learningStreak, todaysPicks,
   projectPlaybook, totalXp, levelFor, findDuplicate, mergeState,
 } from '../core.js';
@@ -160,4 +160,12 @@ test('cloud docs round-trip and diff only what changed', () => {
   const d = diffDocs(toDocs(back), docs);
   assert.equal(d.set.length, 1);
   assert.deepEqual(d.del, ['p_p1']);
+});
+
+test('embedUrl and linkLabel', () => {
+  assert.equal(embedUrl('https://instagram.com/reel/ABC_1/?igsh=x'), 'https://www.instagram.com/reel/ABC_1/embed/captioned/');
+  assert.equal(embedUrl('https://youtu.be/dQw4w9WgXcQ?si=1'), 'https://www.youtube.com/embed/dQw4w9WgXcQ');
+  assert.equal(embedUrl('https://example.com/x'), '');
+  assert.equal(linkLabel('https://www.instagram.com/reel/ABC/'), 'Instagram reel');
+  assert.equal(linkLabel('https://youtube.com/shorts/x'), 'YouTube Short');
 });

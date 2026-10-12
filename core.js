@@ -93,6 +93,27 @@ export function normalizeUrl(url) {
   return `${parsed.protocol}//${host}${path.replace(/\/+$/, '') || '/'}`;
 }
 
+/** Player URL for showing the video inside the app (Instagram/YouTube embeds), or '' if not embeddable. */
+export function embedUrl(url) {
+  const key = normalizeUrl(url);
+  const ig = key.match(/^https:\/\/www\.instagram\.com\/(reel|p|tv)\/([\w-]+)\/$/);
+  if (ig) return `https://www.instagram.com/${ig[1]}/${ig[2]}/embed/captioned/`;
+  const yt = key.match(/^https:\/\/www\.youtube\.com\/watch\?v=([\w-]+)$/);
+  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  return '';
+}
+
+const PLATFORM_LABEL = { instagram: 'Instagram', youtube: 'YouTube', tiktok: 'TikTok', linkedin: 'LinkedIn', web: 'Web' };
+
+/** Human label for a saved link with no title or note yet, e.g. "Instagram reel" / "YouTube Short". */
+export function linkLabel(url) {
+  const platform = detectPlatform(url);
+  const u = String(url).toLowerCase();
+  if (platform === 'instagram') return u.includes('/p/') ? 'Instagram post' : 'Instagram reel';
+  if (platform === 'youtube') return u.includes('/shorts/') ? 'YouTube Short' : 'YouTube video';
+  return `${PLATFORM_LABEL[platform]} link`;
+}
+
 function escapeRe(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

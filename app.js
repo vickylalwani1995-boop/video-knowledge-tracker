@@ -1,7 +1,7 @@
 import {
   allTopics, emptyState, extractUrl, extractUrls, detectPlatform, normalizeUrl, suggestTopics, createVideo, findDuplicate, advance,
   createExperiment, setExperimentStatus, periodStats, topicStats, blindSpots, learningStreak, totalXp,
-  levelFor, todaysPicks, projectPlaybook, mergeState, uid, EXP_STATUSES, XP, toDocs, fromDocs, diffDocs,
+  levelFor, embedUrl, linkLabel, todaysPicks, projectPlaybook, mergeState, uid, EXP_STATUSES, XP, toDocs, fromDocs, diffDocs,
 } from './core.js';
 
 const STORE_KEY = 'reel2real:v1';
@@ -98,11 +98,10 @@ function ago(ts) {
 function displayTitle(v) {
   if (v.title) return v.title;
   if (v.note) return v.note.length > 90 ? v.note.slice(0, 90) + '…' : v.note;
-  try {
-    const u = new URL(v.url);
-    return `${u.hostname.replace(/^www\./, '')}${u.pathname.length > 1 ? u.pathname.slice(0, 32) : ''}`;
-  } catch { return v.url; }
+  return linkLabel(v.url);
 }
+
+const PLATFORM_NAME = { instagram: 'Instagram', youtube: 'YouTube', tiktok: 'TikTok', linkedin: 'LinkedIn', web: 'the web' };
 
 const PLATFORM_ICON = { instagram: '📸', youtube: '▶', tiktok: '♪', linkedin: 'in', web: '🔗' };
 
@@ -203,6 +202,9 @@ function openLearn(id) {
     <h3>💡 Lock in the learning</h3>
     <p class="sub">${esc(displayTitle(v))}</p>
     <div class="stack" style="margin-top:14px">
+      ${IN_ARTIFACT ? `<div class="field ai-box"><label>✨ Let AI write it (optional)</label>
+        <textarea name="raw" id="learn-raw" placeholder="Paste the reel's caption, or type what the video said in your own words — messy is fine">${esc(v.note)}</textarea>
+        <div class="row" style="margin-top:8px"><button type="button" class="btn small" data-action="ai-fill" data-id="${v.id}">✨ Summarize into a learning</button><span class="hint" id="ai-status"></span></div></div>` : ''}
       <div class="field"><label>The ONE thing I learned</label>
         <textarea name="insight" required autofocus placeholder="e.g. Meta's Andromeda rewards 10–15 creatively different ads in one broad ad set">${esc(v.insight)}</textarea></div>
       <div class="field"><label>How I could use it (optional)</label>
@@ -228,6 +230,35 @@ function openLearn(id) {
     }
     commit(msg);
   });
+}
+
+async function aiFill(id, btn) {
+  const raw = $('#learn-raw')?.value.trim();
+  const status = $('#ai-status');
+  if (!raw) { toast('First paste the caption or type what the video said'); return; }
+  const sample = await window.claude?.use?.('sample');
+  if (!sample) { status.textContent = 'AI is not available here — write it yourself below.'; return; }
+  btn.disabled = true;
+  status.textContent = 'Thinking…';
+  const topics = allTopics(state).map(t => `${t.id} = ${t.name}`).join(', ');
+  try {
+    const out = await sample.json(`You help a digital marketer turn short knowledge videos (Instagram reels, YouTube) into usable learnings.
+From the notes below, return JSON only: {"title": string (max 8 words, what the video teaches), "insight": string (the ONE key learning, max 30 words, concrete), "idea": string (one specific action to try on a real project, max 25 words), "topics": string[] (1-2 ids from: ${topics})}.
+Use only what the notes say; do not invent numbers or claims.
+
+Notes:
+${raw}`, { modelTier: 'quick' });
+    const form = $('#modal-body');
+    if (out.insight) form.insight.value = out.insight;
+    if (out.idea) form.idea.value = out.idea;
+    if (Array.isArray(out.topics)) form.querySelectorAll('input[name=topics]').forEach(cb => { cb.checked = out.topics.includes(cb.value); });
+    const v = videoById(id);
+    if (out.title && !v.title) v.title = String(out.title).slice(0, 80);
+    if (!v.note) v.note = raw;
+    status.textContent = 'Done — edit anything, then Lock it in.';
+  } catch (err) {
+    status.textContent = err?.code === 'not_granted' ? 'AI permission was declined — write it yourself below.' : 'AI could not answer — try again or write it yourself.';
+  } finally { btn.disabled = false; }
 }
 
 function openApply(videoId, presetProject) {
@@ -468,12 +499,15 @@ function videoCard(v) {
     <a class="plat ${v.platform}" href="${esc(v.url)}" target="_blank" rel="noopener" title="Open video">${PLATFORM_ICON[v.platform] || '🔗'}</a>
     <div>
       <div class="title">${esc(displayTitle(v))}</div>
+      ${!v.title && !v.note ? `<div class="hint">Add a few words so you remember what it's about → <button class="linkish" data-action="edit" data-id="${v.id}">add note</button></div>` : ''}
       <div class="meta">${v.platform} · saved ${ago(v.addedAt)}${v.learnedAt ? ` · learned ${ago(v.learnedAt)}` : ''}${exps.length ? ` · ${exps.length} experiment${exps.length > 1 ? 's' : ''}${won ? ` · ${won} 🏆` : ''}` : ''}</div>
       ${v.topics.length ? `<div class="chips" style="margin-top:6px">${staticTopicChips(v.topics)}</div>` : ''}
       <div class="track" title="Saved → Watched → Learned → Applied">${steps.map(s => `<i class="${s ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="player" id="player-${v.id}" hidden></div>
       ${v.insight ? `<div class="insight"><small>Learned</small>${esc(v.insight)}${v.idea ? `<div class="hint" style="margin-top:4px">→ ${esc(v.idea)}</div>` : ''}</div>` : ''}
       <div class="actions">
-        <a class="btn small ghost" href="${esc(v.url)}" target="_blank" rel="noopener">Open ↗</a>
+        <a class="btn small watch" href="${esc(v.url)}" target="_blank" rel="noopener">▶ Watch on ${PLATFORM_NAME[v.platform]}</a>
+        ${!IN_ARTIFACT && embedUrl(v.url) ? `<button class="btn small ghost" data-action="play" data-id="${v.id}">Play here</button>` : ''}
         ${actions}
         <button class="btn small ghost" data-action="edit" data-id="${v.id}" aria-label="Edit">⋯</button>
       </div>
@@ -750,6 +784,20 @@ document.addEventListener('click', e => {
   const { action, id } = el.dataset;
   switch (action) {
     case 'watched': return markWatched(id);
+    case 'play': {
+      const box = document.getElementById(`player-${id}`);
+      if (!box) return;
+      if (box.hidden) {
+        box.innerHTML = `<iframe src="${esc(embedUrl(videoById(id).url))}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy" title="Video player"></iframe>`;
+        box.hidden = false;
+        el.textContent = 'Hide player';
+      } else {
+        box.innerHTML = '';
+        box.hidden = true;
+        el.textContent = 'Play here';
+      }
+      return;
+    }
     case 'learn': return openLearn(id);
     case 'apply': return openApply(id);
     case 'edit': return openEdit(id);
@@ -767,6 +815,7 @@ document.addEventListener('click', e => {
     case 'period': ui.period = id === 'all' ? 'all' : Number(id); saveUi(); return render();
     case 'goto-topic': ui.topic = id; ui.stage = 'saved'; return go('library');
     case 'open-settings': return openSettings();
+    case 'ai-fill': return aiFill(id, el);
     case 'paste': return pasteFromClipboard();
   }
 });
