@@ -19,7 +19,7 @@ plus **blind spots**: topics you keep saving but never actually learn.
 
 ## Use it
 
-**Lovable version (public website, own login + AI):** https://lovable.dev/projects/a04eb73d-0ad2-4a30-b37e-e10796f2be56
+**Public app (Lovable — own login, AI action points, syncs across devices):** https://reel2real-tracker.lovable.app (edit at https://lovable.dev/projects/a04eb73d-0ad2-4a30-b37e-e10796f2be56)
 
 **Web app (synced across laptop + phone):** https://claude.ai/artifact/9nhgghFcCHUDdHQ21RiCx9.
 Sign in to claude.ai and open it on any device. Your data is saved privately to your Claude account.
