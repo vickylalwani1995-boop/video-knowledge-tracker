@@ -1,6 +1,7 @@
 // The tracker, for Claude sessions and other tools (same data the WhatsApp bot and /status page use).
 //   GET  /api/ideas?token=…            → all ideas
 //   POST /api/ideas?token=…  JSON body:
+//     { "action": "add-link", "url": "..." }   ← instant save from the web app (caption only, no AI)
 //     { "action": "add", "url": "...", "note": "...", "idea": { title, one_liner, money_score, how_it_earns,
 //        effort, cost_estimate, first_test, client_pitch, needs_from_you: [], steps: [{text, owner}] }, "notify": true }
 //     { "action": "step",  "n": 3, "step": 2, "done": true, "output": "what was produced" }
@@ -11,6 +12,7 @@ import { makeDeps } from '../lib/deps.js';
 import { authorized, unauthorized } from '../lib/auth.js';
 import { createIdea, findIdea, findDuplicate, markStep, setStage, parseStage, extractUrls } from '../lib/ideas.js';
 import { ideaCard } from '../lib/format.js';
+import { fetchReel } from '../lib/reel.js';
 
 export async function GET(request, deps) {
   deps = deps?.cfg ? deps : await makeDeps();
@@ -30,6 +32,23 @@ export async function POST(request, deps) {
   let message;
 
   switch (body.action) {
+    case 'add-link': {
+      // Instant save from the web app: link + public caption, no AI needed. Claude reviews it later.
+      const url = String(body.url || '').trim();
+      if (!/^https?:\/\//.test(url)) return bad('Paste a full link starting with https://');
+      const dup = findDuplicate(state, [url]);
+      if (dup) return Response.json({ duplicate: true, idea: dup });
+      const reel = await (deps.readReel || fetchReel)(url).catch(() => ({}));
+      const caption = String(reel.caption || '').trim();
+      const first = caption.split('\n').map(x => x.trim()).find(Boolean) || '';
+      idea = createIdea(state, {
+        title: (first || `${reel.author ? '@' + reel.author + ' ' : ''}reel`).replace(/#\S+/g, '').slice(0, 90).trim() || 'New reel',
+        one_liner: caption.slice(0, 500), money_score: 5, steps: [],
+      }, { urls: [url], text: body.note || '' });
+      idea.verdict = '⏳ Not reviewed yet: say "review" to Claude';
+      if (reel.author) idea.notes = [{ text: `By @${reel.author}${reel.date ? ' · ' + reel.date : ''}`, at: Date.now() }];
+      break;
+    }
     case 'add': {
       const urls = body.url ? [body.url] : extractUrls(body.note || '');
       const dup = findDuplicate(state, urls);

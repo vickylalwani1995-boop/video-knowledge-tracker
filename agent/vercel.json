@@ -4,9 +4,10 @@
     "api/**/*.js": { "maxDuration": 60, "includeFiles": "node_modules/ffmpeg-static/ffmpeg" }
   },
   "rewrites": [
+    { "source": "/app", "destination": "/api/app" },
     { "source": "/status", "destination": "/api/status" },
     { "source": "/api/health", "destination": "/api/status" },
-    { "source": "/", "destination": "/api/status" }
+    { "source": "/", "destination": "/api/app" }
   ],
   "crons": [
     { "path": "/api/cron?job=morning", "schedule": "30 3 * * *" },

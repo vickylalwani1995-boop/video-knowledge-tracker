@@ -470,3 +470,22 @@ test('video → frames: timing, real extraction, and Claude gets labelled frames
   const parts = frameParts([{ label: '0:01', base64: 'F', mimeType: 'image/jpeg' }]);
   assert.deepEqual(parts.map(p => p.type), ['text', 'text', 'image']);
 });
+
+test('web app: needs token, seeds shared reels once, add-link saves instantly, steps toggle', async () => {
+  const { GET: appGET } = await import('../api/app.js');
+  const { POST: ideasPOST } = await import('../api/ideas.js');
+  const d = deps({ cfg: baseCfg({ statusToken: 'tok' }), readReel: async url => ({ url, author: 'creator', caption: 'Big SEO trick\n#seo', notes: [] }) });
+  assert.equal((await appGET(new Request('http://x/app'), d)).status, 401);
+  const html = await (await appGET(new Request('http://x/app?token=tok'), d)).text();
+  assert.match(html, /Roast Room/);
+  assert.equal((await d.store.load()).ideas.length, 3);
+  await appGET(new Request('http://x/app?token=tok'), d);
+  assert.equal((await d.store.load()).ideas.length, 3, 'seed runs only once');
+  const post = b => ideasPOST(new Request('http://x/api/ideas?token=tok', { method: 'POST', body: JSON.stringify(b) }), d);
+  const r = await (await post({ action: 'add-link', url: 'https://www.instagram.com/reel/NEW1/?igsh=x' })).json();
+  assert.equal(r.idea.title, 'Big SEO trick');
+  assert.match(r.idea.verdict, /Not reviewed/);
+  assert.equal((await (await post({ action: 'add-link', url: 'https://instagram.com/reel/NEW1/' })).json()).duplicate, true);
+  await post({ action: 'step', n: 1, step: 3, done: true });
+  assert.equal((await d.store.load()).ideas[0].steps[2].done, true);
+});

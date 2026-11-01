@@ -1,6 +1,7 @@
 # 🎬 Reel to Real: Watch → Execute → Earn
 
-Every reel Vicky shares with Claude gets **understood, executed and tracked here**.
+Every reel Vicky shares gets **understood, executed and tracked**.
+**Live app (main tracker):** https://idea-agent-ochre.vercel.app/app?token=… (your bookmarked link). This file is the backup copy.
 Open this file on your phone: GitHub app → `video-knowledge-tracker` → `REEL-TO-REAL.md`.
 
 **Stages:** 📥 Saved → 🧪 Testing → 🔨 Building → 🚀 Live → 💰 Earning (🗑️ Dropped)
