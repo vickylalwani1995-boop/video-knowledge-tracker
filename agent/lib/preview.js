@@ -38,8 +38,7 @@ export async function linkPreview(url, fetchImpl = fetch) {
     } catch { return ''; }
   }
   const html = await fetchText(url, fetchImpl, {
-    // Instagram/Facebook serve link-preview tags to their own crawler user agent.
-    'User-Agent': platform === 'instagram' || platform === 'facebook' ? 'facebookexternalhit/1.1' : 'Mozilla/5.0 (compatible; IdeaAgent/1.0)',
+    'User-Agent': 'IdeaAgent/1.0 (personal link preview; +https://idea-agent-ochre.vercel.app)',
     'Accept-Language': 'en',
   });
   if (!html) return '';

@@ -19,9 +19,6 @@ export async function respond(state, msg, deps) {
   let m;
 
   if (msg.note === 'audio') return ['🎤 I can\'t listen to voice notes yet. Please type it, or forward the reel link.'];
-  if (msg.note === 'video' && !extractUrls(text).length) {
-    return ['🎬 I can\'t watch video files. Forward the reel *link* instead (Instagram → Share → WhatsApp), or send a screenshot of the caption.'];
-  }
   if (!text && !msg.mediaId) return [helpText()];
 
   if (re('(help|menu|\\?|hi|hello|hey|start|commands)').test(t)) return [helpText()];
@@ -107,7 +104,7 @@ export async function respond(state, msg, deps) {
   const urls = extractUrls(text);
   const explicitIdea = /^(idea|save|add)\b[:\s-]*/i.test(text);
   if (urls.length || msg.mediaId || explicitIdea) {
-    return newIdea(state, { text: text.replace(/^(idea|save|add)\b[:\s-]*/i, ''), urls, mediaId: msg.mediaId }, deps);
+    return newIdea(state, { text: text.replace(/^(idea|save|add)\b[:\s-]*/i, ''), urls, mediaId: msg.mediaId, isVideo: msg.isVideo }, deps);
   }
 
   const summary = state.ideas.filter(i => i.stage !== 'dropped').slice(-25).map(ideaLine).join('\n');
@@ -116,7 +113,7 @@ export async function respond(state, msg, deps) {
   return [ans.reply || helpText()];
 }
 
-async function newIdea(state, { text, urls, mediaId }, { brain, preview, readReel, downloadMedia, notify, autoDo = true }) {
+async function newIdea(state, { text, urls, mediaId, isVideo }, { brain, preview, readReel, downloadMedia, notify, autoDo = true }) {
   const dup = findDuplicate(state, urls);
   if (dup) return [`You already sent this one, it's saved as *#${dup.n}*.`, ideaCard(dup)];
   if (notify) await notify('👀 Got it, analysing… (about 30 seconds)').catch(() => {});
@@ -128,10 +125,14 @@ async function newIdea(state, { text, urls, mediaId }, { brain, preview, readRee
     ? [`${reel.platform} post by ${reel.author || 'unknown'}: ${reel.caption}`]
     : preview ? (await Promise.all(urls.slice(0, 3).map(u => preview(u).catch(() => '')))).filter(Boolean) : [];
   let image = null;
-  if (mediaId && downloadMedia) image = await downloadMedia(mediaId);
+  let sentVideo = null;
+  if (mediaId && downloadMedia) {
+    const file = await downloadMedia(mediaId);
+    if (isVideo || file.mimeType.startsWith('video/')) sentVideo = file; else image = file;
+  }
 
-  const analysis = await brain.analyzeIdea({ text, preview: previews.join('\n'), image, urls, video: reel?.video });
-  const idea = createIdea(state, analysis, { urls, text, hasImage: Boolean(image) });
+  const analysis = await brain.analyzeIdea({ text, preview: previews.join('\n'), image, urls, video: sentVideo || reel?.video });
+  const idea = createIdea(state, analysis, { urls, text, hasImage: Boolean(image || sentVideo) });
   const replies = [`✅ Saved as *#${idea.n}*\n\n${ideaCard(idea)}`];
 
   // Don't just plan it: do the first step the agent can do, right away.
@@ -149,8 +150,8 @@ async function newIdea(state, { text, urls, mediaId }, { brain, preview, readRee
       replies.push(`Reply *do ${idea.n}.${first.n}* and I'll do step ${first.n} for you.`);
     }
   }
-  if (urls.some(u => /instagram/.test(u)) && !previews.length && !reel?.video && !image && text.replace(/https?:\/\/\S+/g, '').trim().length < 15) {
-    replies.push('💡 Instagram didn\'t let me see this reel. For a sharper plan, send a screenshot or paste the caption, then reply *note ' + idea.n + ' <caption>*.');
+  if (urls.some(u => /instagram/.test(u)) && !previews.length && !sentVideo && !image && text.replace(/https?:\/\/\S+/g, '').trim().length < 15) {
+    replies.push('💡 I couldn\'t read this reel. For a sharper plan, screen-record it and send me the video (or a screenshot), then reply *note ' + idea.n + ' <anything extra>*.');
   }
   return replies;
 }

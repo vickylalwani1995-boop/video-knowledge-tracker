@@ -17,7 +17,7 @@ export async function GET(request, deps) {
   let aiError = null;
   if (deps.brain.understandReel) {
     try { understanding = await deps.brain.understandReel(reel); } catch (e) { aiError = e.message; }
-  } else aiError = 'This AI brain cannot watch videos; set GEMINI_API_KEY';
+  } else aiError = 'AI not connected on the server (ANTHROPIC_API_KEY missing). Read the caption yourself.';
   const state = await deps.store.load().catch(() => null);
   const dup = state ? findDuplicate(state, [url]) : null;
 

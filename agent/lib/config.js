@@ -61,7 +61,7 @@ export function configReport(cfg = config()) {
     webhookVerify: Boolean(cfg.waVerifyToken),
     signatureCheck: Boolean(cfg.waAppSecret),
     owner: Boolean(cfg.ownerNumber),
-    ai: Boolean(cfg.geminiKey || cfg.anthropicKey),
+    ai: aiProviderOf(cfg) !== 'offline',
     aiProvider: aiProviderOf(cfg),
     storage: cfg.redisUrl && cfg.redisToken ? 'redis' : cfg.blobToken ? 'blob' : 'local-file',
     cronSecret: Boolean(cfg.cronSecret),
@@ -70,8 +70,9 @@ export function configReport(cfg = config()) {
 }
 
 export function aiProviderOf(cfg) {
-  if (cfg.aiProvider === 'claude' && cfg.anthropicKey) return 'claude';
-  if (cfg.aiProvider === 'gemini' && cfg.geminiKey) return 'gemini';
+  // An explicit choice always wins (no silent switch to another AI). Missing key → offline mode.
+  if (cfg.aiProvider === 'claude') return cfg.anthropicKey ? 'claude' : 'offline';
+  if (cfg.aiProvider === 'gemini') return cfg.geminiKey ? 'gemini' : 'offline';
   if (cfg.geminiKey) return 'gemini';
   if (cfg.anthropicKey) return 'claude';
   return 'offline';

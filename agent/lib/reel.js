@@ -1,9 +1,11 @@
-// Read a reel/video link: caption, author and (for Instagram) the video file itself,
-// so the AI can actually watch it. Runs on Vercel's servers, where Instagram serves public posts.
+// Read a reel/video link the honest way: the public title/caption a normal link preview shows.
+// We identify ourselves truthfully and never disguise the request or pull video files out of
+// Instagram pages. To let the AI watch an Instagram video, send the video itself (screen recording)
+// to the WhatsApp bot. YouTube videos are watched directly by Gemini through Google's official support.
 
 import { detectPlatform, normalizeUrl } from './ideas.js';
 
-const MAX_VIDEO_BYTES = 18 * 1024 * 1024; // Gemini inline limit is ~20MB per request
+const UA = 'IdeaAgent/1.0 (personal link preview; +https://idea-agent-ochre.vercel.app)';
 
 export function decodeEntities(s) {
   return String(s || '')
@@ -31,32 +33,20 @@ export function parseInstagramMeta(html) {
   };
 }
 
-/** Find the mp4 address inside Instagram's embed page (escaped JSON: \/ and &). */
-export function findVideoUrl(html) {
-  const m = html.match(/"video_url"\s*:\s*"([^"]+)"/) || html.match(/(https?:\\?\/\\?\/[^"'\s]+?\.mp4[^"'\s]*)/);
-  if (!m) return '';
-  return m[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/').replace(/&amp;/g, '&');
-}
-
-async function get(url, fetchImpl, { ua, ms = 12000, binary = false } = {}) {
+async function get(url, fetchImpl, ms = 12000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
-    const res = await fetchImpl(url, { headers: { 'User-Agent': ua || 'facebookexternalhit/1.1', 'Accept-Language': 'en' }, signal: ctrl.signal, redirect: 'follow' });
-    if (!res.ok) return null;
-    if (!binary) return await res.text();
-    const len = Number(res.headers.get('content-length') || 0);
-    if (len > MAX_VIDEO_BYTES) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    return buf.length > MAX_VIDEO_BYTES ? null : buf;
+    const res = await fetchImpl(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'en' }, signal: ctrl.signal, redirect: 'follow' });
+    return res.ok ? await res.text() : null;
   } catch { return null; } finally { clearTimeout(t); }
 }
 
 /**
- * Returns { url, platform, author, caption, video?: { base64, mimeType }, youtube?: url, notes[] }.
+ * Returns { url, platform, author, caption, youtube?: url, notes[] }.
  * Never throws: whatever could not be read is listed in notes.
  */
-export async function fetchReel(url, fetchImpl = fetch, { withVideo = true } = {}) {
+export async function fetchReel(url, fetchImpl = fetch) {
   const platform = detectPlatform(url);
   const out = { url, key: normalizeUrl(url), platform, author: '', caption: '', notes: [] };
 
@@ -72,18 +62,12 @@ export async function fetchReel(url, fetchImpl = fetch, { withVideo = true } = {
     const page = await get(canon, fetchImpl);
     if (page) Object.assign(out, parseInstagramMeta(page));
     if (!out.caption) out.notes.push('Instagram did not share the caption (private post or blocked)');
-    if (withVideo) {
-      const embed = await get(`${canon}embed/captioned/`, fetchImpl, { ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148' });
-      const videoUrl = embed ? findVideoUrl(embed) : '';
-      const buf = videoUrl ? await get(videoUrl, fetchImpl, { binary: true, ms: 20000, ua: 'Mozilla/5.0' }) : null;
-      if (buf) out.video = { base64: buf.toString('base64'), mimeType: 'video/mp4', bytes: buf.length };
-      else out.notes.push(videoUrl ? 'Video too large or download failed' : 'Video file not available (maybe a photo post)');
-    }
+    out.notes.push('To let the AI watch the video itself, screen-record the reel and send the video to the WhatsApp bot');
     return out;
   }
 
   // Any other site: title + description
-  const page = await get(url, fetchImpl, { ua: 'Mozilla/5.0 (compatible; IdeaAgent/1.0)' });
+  const page = await get(url, fetchImpl);
   if (page) {
     const p = parseInstagramMeta(page);
     out.caption = [p.title, p.caption].filter(Boolean).join(' — ');

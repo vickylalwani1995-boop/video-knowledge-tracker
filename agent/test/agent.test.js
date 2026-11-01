@@ -150,7 +150,6 @@ test('respond: plain question goes to AI chat; chat can classify as a new idea',
 test('respond: voice notes and raw videos get a helpful message', async () => {
   const d = deps();
   assert.match((await respond(emptyState(), { id: '1', from: 'x', type: 'audio', text: '', note: 'audio' }, d))[0], /voice notes/);
-  assert.match((await respond(emptyState(), { id: '2', from: 'x', type: 'video', text: '', note: 'video' }, d))[0], /link/);
 });
 
 test('handleMessage ignores strangers and retries, and reports errors instead of going silent', async () => {
@@ -373,22 +372,29 @@ test('handlers ignore the extra context argument Vercel passes', async () => {
   assert.ok([200, 503].includes(res.status));
 });
 
-test('reel reader: parses Instagram caption + finds the video file', async () => {
-  const { parseInstagramMeta, findVideoUrl, fetchReel } = await import('../lib/reel.js');
+test('reel reader: reads the public caption honestly, no disguised requests, no video scraping', async () => {
+  const { parseInstagramMeta, fetchReel } = await import('../lib/reel.js');
   const page = '<meta property="og:description" content="6,581 likes, 6,028 comments - nivedan.ai on September 12, 2026: &quot;What if your AI could search the web? &#x1f440;\nComment AI to get it&quot;." />';
   const meta = parseInstagramMeta(page);
   assert.equal(meta.author, 'nivedan.ai');
   assert.match(meta.caption, /^What if your AI could search the web\? 👀\nComment AI/);
-  const embed = '{"video_url":"https:\\/\\/scontent.cdninstagram.com\\/v\\/abc.mp4?a=1\\u0026b=2"}';
-  assert.equal(findVideoUrl(embed), 'https://scontent.cdninstagram.com/v/abc.mp4?a=1&b=2');
-  const fetchImpl = async (url) => {
-    if (url.endsWith('/embed/captioned/')) return new Response(embed);
-    if (url.includes('.mp4')) return new Response(Buffer.from('VIDEO'));
-    return new Response(page);
-  };
+  const requests = [];
+  const fetchImpl = async (url, opts) => { requests.push({ url, ua: opts.headers['User-Agent'] }); return new Response(page); };
   const reel = await fetchReel('https://www.instagram.com/reel/XYZ/?igsh=1', fetchImpl);
-  assert.equal(reel.video.base64, Buffer.from('VIDEO').toString('base64'));
   assert.equal(reel.author, 'nivedan.ai');
+  assert.equal(reel.video, undefined);
+  assert.equal(requests.length, 1, 'only the public post page');
+  assert.match(requests[0].ua, /^IdeaAgent\//);
+});
+
+test('WhatsApp video message (screen recording) is watched by the AI', async () => {
+  const d = deps({ downloadMedia: async () => ({ base64: 'VID', mimeType: 'video/mp4' }) });
+  const s = emptyState();
+  await respond(s, msg('', { type: 'video', mediaId: 'M1', isVideo: true }), d);
+  const [, input] = d.brain.calls.find(c => c[0] === 'analyze');
+  assert.equal(input.video.base64, 'VID');
+  assert.equal(input.image, null);
+  assert.equal(s.ideas.length, 1);
 });
 
 test('new idea from an Instagram link uses the downloaded video', async () => {
@@ -419,4 +425,18 @@ test('/api/reel and /api/ideas need the token and update the shared tracker', as
   const list = await (await ideasGET(new Request('http://x/api/ideas?token=tok'), d)).json();
   assert.equal(list.ideas[0].steps[0].done, true);
   assert.equal(list.ideas[0].steps[0].output, 'Cloned repo and ran it');
+});
+
+test('AI_PROVIDER=claude never silently falls back to Gemini', async () => {
+  const { config: c, aiProviderOf } = await import('../lib/config.js');
+  assert.equal(aiProviderOf(c({ AI_PROVIDER: 'claude', GEMINI_API_KEY: 'g'.repeat(39) })), 'offline');
+  assert.equal(aiProviderOf(c({ AI_PROVIDER: 'claude', ANTHROPIC_API_KEY: 'sk-ant-xxxxxxxxxxxxxxxx' })), 'claude');
+});
+
+test('Claude brain can read a reel caption', async () => {
+  let req;
+  const client = { beta: { messages: { create: async r => { req = r; return { stop_reason: 'end_turn', content: [{ type: 'text', text: '{"title":"Agent Reach"}' }] }; } } } };
+  const out = await createBrain(baseCfg(), { client }).understandReel({ url: 'u', caption: 'Meet Agent Reach' });
+  assert.equal(out.title, 'Agent Reach');
+  assert.match(JSON.stringify(req.messages), /Meet Agent Reach/);
 });

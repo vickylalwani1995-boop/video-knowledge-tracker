@@ -17,13 +17,15 @@ Talk in plain simple English. Do the work; don't just give advice.
 ## 1. Understand the reel
 
 The Idea Agent app (Vercel project `idea-agent`, team `vicky-lalwanis-projects`,
-`https://idea-agent-ochre.vercel.app`) downloads the reel and has Gemini watch it:
+`https://idea-agent-ochre.vercel.app`) reads the reel's public caption (honest link preview; it never
+disguises requests or scrapes video files) and, if the server has a Claude key, analyses it:
 
 ```
 GET https://idea-agent-ochre.vercel.app/api/reel?url=<URL-encoded link>&token=<TOKEN>
 ```
 
-Returns `reel` (author, caption, stats, `videoWatched`) and `understanding` (`what_it_teaches`,
+Returns `reel` (author, caption, stats) and `understanding` (null if the server AI isn't connected:
+then read the caption yourself) (`what_it_teaches`,
 `spoken_points`, `tools_mentioned`, `github_repos`, `links_mentioned`, `comment_to_get`, `hype_check`,
 `how_to_use_for_me`) plus `alreadySaved` if it's already in the tracker.
 
@@ -36,6 +38,7 @@ bookmark link (`…/status?token=…`); the part after `token=` is it. Never wri
    teamId `team_JdlqRW8nWluFMETisM4TJh70`, `persistent: false`, 1 vCPU), `run_session_command` with the curl
    (`wait: true`), `get_session_command_logs`, then `stop_session`. The call can take up to ~60 s.
 3. If both fail, work from what the user tells you or a screenshot, and say the video wasn't watched.
+4. The user wants everything done with Claude only: don't use Gemini or other AIs.
 
 If `comment_to_get` is set (creator hides the link behind "comment X"), tell the user to comment that word
 on the reel and paste you the DM'd link. Search GitHub/the web for the tool name meanwhile.

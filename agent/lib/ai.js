@@ -144,8 +144,9 @@ export function createBrain(cfg, { client } = {}) {
 
   return {
     kind: 'claude',
-    async analyzeIdea({ text, preview, image }) {
+    async analyzeIdea({ text, preview, image, video }) {
       const parts = [];
+      // Claude reads images, not video files: a sent video is described from its caption/message.
       if (image) parts.push({ type: 'image', source: { type: 'base64', media_type: image.mimeType, data: image.base64 } });
       parts.push({ type: 'text', text: ideaPrompt({ text, preview, hasImage: Boolean(image) }) });
       return call({ content: parts, schema: IDEA_SCHEMA });
@@ -156,6 +157,23 @@ export function createBrain(cfg, { client } = {}) {
         content: stepPrompt(idea, step),
         maxTokens: 16000,
       });
+    },
+
+    /** Read a reel from its caption (and a screenshot if given). Claude does not take video files. */
+    async understandReel(reel) {
+      const parts = [];
+      if (reel.image) parts.push({ type: 'image', source: { type: 'base64', media_type: reel.image.mimeType, data: reel.image.base64 } });
+      parts.push({ type: 'text', text: [
+        `Reel link: ${reel.url}`,
+        reel.author ? `Creator: ${reel.author}` : '',
+        reel.caption ? `Caption:\n${reel.caption}` : 'No caption could be read.',
+        'Explain exactly what this reel teaches, based on the caption. List every tool, GitHub repo and link it mentions.',
+      ].filter(Boolean).join('\n\n') });
+      return call({ content: parts, schema: REEL_SCHEMA, maxTokens: 8000 });
+    },
+
+    async ping() {
+      return call({ content: 'Reply with the single word OK.', maxTokens: 2000 });
     },
 
     async chat({ text, ideasSummary, history }) {

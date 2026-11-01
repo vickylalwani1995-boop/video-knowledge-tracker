@@ -23,7 +23,7 @@ export function parseWebhook(body) {
         const msg = { id: m.id, from: m.from, type: m.type, text: '', mediaId: null, mimeType: null, timestamp: Number(m.timestamp) * 1000 || Date.now() };
         if (m.type === 'text') msg.text = m.text?.body || '';
         else if (m.type === 'image') { msg.text = m.image?.caption || ''; msg.mediaId = m.image?.id; msg.mimeType = m.image?.mime_type; }
-        else if (m.type === 'video') { msg.text = m.video?.caption || ''; msg.mediaId = null; msg.note = 'video'; }
+        else if (m.type === 'video') { msg.text = m.video?.caption || ''; msg.mediaId = m.video?.id; msg.mimeType = m.video?.mime_type; msg.isVideo = true; }
         else if (m.type === 'document') { msg.text = m.document?.caption || m.document?.filename || ''; }
         else if (m.type === 'button') msg.text = m.button?.text || '';
         else if (m.type === 'interactive') msg.text = m.interactive?.button_reply?.title || m.interactive?.list_reply?.title || '';
@@ -89,7 +89,7 @@ export function createWhatsApp(cfg, fetchImpl = fetch) {
       const res = await fetchImpl(meta.url, { headers: auth });
       if (!res.ok) throw new Error(`Image download failed (${res.status})`);
       const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.length > 4.5 * 1024 * 1024) throw new Error('Image too large, send a smaller screenshot');
+      if (buf.length > 18 * 1024 * 1024) throw new Error('File too large (max ~18 MB). Send a shorter clip or a screenshot.');
       return { base64: buf.toString('base64'), mimeType: (meta.mime_type || 'image/jpeg').split(';')[0] };
     },
   };

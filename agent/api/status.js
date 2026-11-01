@@ -12,7 +12,7 @@ export function healthChecks(state, report, now = Date.now()) {
   const problems = [];
   if (!report.whatsapp) problems.push('WhatsApp token / phone number id missing');
   if (!report.owner) problems.push('OWNER_WHATSAPP missing');
-  if (!report.ai) problems.push('No AI key (GEMINI_API_KEY): running in offline mode');
+  if (!report.ai) problems.push('AI not connected: add ANTHROPIC_API_KEY (Claude) in Vercel. Bot runs in basic mode until then');
   if (report.storage === 'local-file') problems.push('No storage connected (Vercel Blob or Redis): ideas will be lost');
   if (!report.signatureCheck) problems.push('WHATSAPP_APP_SECRET missing: webhook is not verified');
   if (!report.cronSecret) problems.push('CRON_SECRET missing: daily briefs are off');
