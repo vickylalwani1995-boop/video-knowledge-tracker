@@ -5,7 +5,15 @@ Open this file on your phone: GitHub app → `video-knowledge-tracker` → `REEL
 
 **Stages:** 📥 Saved → 🧪 Testing → 🔨 Building → 🚀 Live → 💰 Earning (🗑️ Dropped)
 
-## Board
+## 📥 Inbox (quick-saved, not started)
+
+Send reel links (one or many at once). Claude saves each here in about a minute with a verdict.
+Reply **`do N`** to start one, **`top`** for the best 3.
+
+| # | What it is | Verdict | Money | Link |
+|---|-----------|---------|:-----:|------|
+
+## Board (in progress)
 
 | # | Idea | From | Money | Stage | Progress | Next step |
 |---|------|------|:-----:|-------|:--------:|-----------|

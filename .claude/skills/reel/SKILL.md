@@ -5,6 +5,17 @@ description: Use whenever the user shares an Instagram reel, YouTube, TikTok or 
 
 # Reel → understand → do it → track
 
+## ⚡ DEFAULT = QUICK SAVE (the user said full execution per reel is too slow)
+When Vicky sends one or more links, do ONLY this, fast (aim < 1 minute total, no long research):
+1. Read each caption (direct fetch if allowed; else one Vercel sandbox call for ALL links together;
+   else ask for a screenshot only if the caption is empty).
+2. Add each to the **📥 Inbox** table in `REEL-TO-REAL.md`: #, 1-line what it is, verdict
+   (✅ Good / 🤔 Maybe / ❌ Skip, with a 5-word reason), money /10, link. Same reel twice → say so, don't add.
+3. Commit + push, then reply in ≤ 5 lines: one line per reel + "Reply `do N` to start one."
+Only go deeper when Vicky says `do N` (then follow sections 1–3 below for that idea).
+`top` → the 3 best undone ideas by money score. `list` → the board.
+
+
 The user (Vicky, digital-marketing agency owner, non-technical, India/IST) saves reels full of tactics but
 doesn't execute them. Your job: when they paste a link, **understand it, do the work with them, and track it**.
 Talk in plain simple English. Do the work; don't just give advice.
