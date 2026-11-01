@@ -55,6 +55,24 @@ export const CHAT_SCHEMA = {
   required: ['intent', 'reply'],
 };
 
+export const REEL_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    title: { type: 'string', description: 'Short name for what the reel teaches' },
+    what_it_teaches: { type: 'string', description: '2-4 sentences: the actual technique, in plain words' },
+    spoken_points: { type: 'array', items: { type: 'string' }, description: 'Key points said or shown in the video, in order' },
+    category: { type: 'string', enum: ['seo-aeo-geo', 'meta-ads', 'google-ads', 'website', 'content', 'automation', 'ai-tool', 'github-tool', 'offer-product', 'other'] },
+    tools_mentioned: { type: 'array', items: { type: 'string' } },
+    github_repos: { type: 'array', items: { type: 'string' }, description: 'owner/repo or GitHub URLs shown or said' },
+    links_mentioned: { type: 'array', items: { type: 'string' } },
+    comment_to_get: { type: 'string', description: 'If the creator says "comment X to get the link", the word X; else empty' },
+    hype_check: { type: 'string', description: 'Honest one-liner: real and useful, partly hype, or misleading' },
+    how_to_use_for_me: { type: 'string', description: 'How a digital-marketing agency owner can use this for own business or clients' },
+  },
+  required: ['title', 'what_it_teaches', 'spoken_points', 'category', 'tools_mentioned', 'github_repos', 'links_mentioned', 'comment_to_get', 'hype_check', 'how_to_use_for_me'],
+};
+
 export function ideaPrompt({ text, preview, hasImage, hasVideo }) {
   return [
     'New idea forwarded from my phone. Analyse it and make an execution plan.',

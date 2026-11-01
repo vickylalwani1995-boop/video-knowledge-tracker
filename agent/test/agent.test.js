@@ -372,3 +372,51 @@ test('handlers ignore the extra context argument Vercel passes', async () => {
   const res = await statusGET(new Request('http://x/api/status'), { waitUntil() {} });
   assert.ok([200, 503].includes(res.status));
 });
+
+test('reel reader: parses Instagram caption + finds the video file', async () => {
+  const { parseInstagramMeta, findVideoUrl, fetchReel } = await import('../lib/reel.js');
+  const page = '<meta property="og:description" content="6,581 likes, 6,028 comments - nivedan.ai on September 12, 2026: &quot;What if your AI could search the web? &#x1f440;\nComment AI to get it&quot;." />';
+  const meta = parseInstagramMeta(page);
+  assert.equal(meta.author, 'nivedan.ai');
+  assert.match(meta.caption, /^What if your AI could search the web\? 👀\nComment AI/);
+  const embed = '{"video_url":"https:\\/\\/scontent.cdninstagram.com\\/v\\/abc.mp4?a=1\\u0026b=2"}';
+  assert.equal(findVideoUrl(embed), 'https://scontent.cdninstagram.com/v/abc.mp4?a=1&b=2');
+  const fetchImpl = async (url) => {
+    if (url.endsWith('/embed/captioned/')) return new Response(embed);
+    if (url.includes('.mp4')) return new Response(Buffer.from('VIDEO'));
+    return new Response(page);
+  };
+  const reel = await fetchReel('https://www.instagram.com/reel/XYZ/?igsh=1', fetchImpl);
+  assert.equal(reel.video.base64, Buffer.from('VIDEO').toString('base64'));
+  assert.equal(reel.author, 'nivedan.ai');
+});
+
+test('new idea from an Instagram link uses the downloaded video', async () => {
+  const d = deps({ readReel: async () => ({ platform: 'instagram', author: 'x', caption: 'SEO trick', video: { base64: 'V', mimeType: 'video/mp4' } }) });
+  await respond(emptyState(), msg('https://www.instagram.com/reel/VID1/'), d);
+  const [, input] = d.brain.calls.find(c => c[0] === 'analyze');
+  assert.equal(input.video.base64, 'V');
+  assert.match(input.preview, /SEO trick/);
+});
+
+test('/api/reel and /api/ideas need the token and update the shared tracker', async () => {
+  const { GET: reelGET } = await import('../api/reel.js');
+  const { GET: ideasGET, POST: ideasPOST } = await import('../api/ideas.js');
+  const d = deps({ cfg: baseCfg({ statusToken: 'tok' }), readReel: async url => ({ url, platform: 'instagram', caption: 'c', notes: [], video: { base64: 'V', mimeType: 'video/mp4', bytes: 1 } }) });
+  d.brain.understandReel = async () => ({ title: 'Free AI web scraper', github_repos: ['owner/repo'] });
+  assert.equal((await reelGET(new Request('http://x/api/reel?url=https://instagram.com/reel/A/'), d)).status, 401);
+  const r = await (await reelGET(new Request('http://x/api/reel?token=tok&url=https://instagram.com/reel/A/'), d)).json();
+  assert.equal(r.understanding.github_repos[0], 'owner/repo');
+  assert.equal(r.reel.videoWatched, true);
+  assert.equal(r.reel.video, undefined, 'never returns the raw video');
+
+  const post = body => ideasPOST(new Request('http://x/api/ideas?token=tok', { method: 'POST', body: JSON.stringify(body) }), d);
+  const added = await (await post({ action: 'add', url: 'https://instagram.com/reel/A/', idea: analysis(), notify: true })).json();
+  assert.equal(added.idea.n, 1);
+  assert.match(d.wa.sent[0].text, /New idea added from Claude/);
+  assert.equal((await (await post({ action: 'add', url: 'https://www.instagram.com/reel/A/?igsh=2', idea: analysis() })).json()).duplicate, true);
+  await post({ action: 'step', n: 1, step: 1, output: 'Cloned repo and ran it' });
+  const list = await (await ideasGET(new Request('http://x/api/ideas?token=tok'), d)).json();
+  assert.equal(list.ideas[0].steps[0].done, true);
+  assert.equal(list.ideas[0].steps[0].output, 'Cloned repo and ran it');
+});

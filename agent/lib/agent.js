@@ -116,16 +116,21 @@ export async function respond(state, msg, deps) {
   return [ans.reply || helpText()];
 }
 
-async function newIdea(state, { text, urls, mediaId }, { brain, preview, downloadMedia, notify, autoDo = true }) {
+async function newIdea(state, { text, urls, mediaId }, { brain, preview, readReel, downloadMedia, notify, autoDo = true }) {
   const dup = findDuplicate(state, urls);
   if (dup) return [`You already sent this one, it's saved as *#${dup.n}*.`, ideaCard(dup)];
   if (notify) await notify('👀 Got it, analysing… (about 30 seconds)').catch(() => {});
 
-  const previews = preview ? (await Promise.all(urls.slice(0, 3).map(u => preview(u).catch(() => '')))).filter(Boolean) : [];
+  // Read the reel itself (caption + video file) when we can; otherwise a simple link preview.
+  let reel = null;
+  if (readReel && urls[0]) reel = await readReel(urls[0]).catch(() => null);
+  const previews = reel?.caption
+    ? [`${reel.platform} post by ${reel.author || 'unknown'}: ${reel.caption}`]
+    : preview ? (await Promise.all(urls.slice(0, 3).map(u => preview(u).catch(() => '')))).filter(Boolean) : [];
   let image = null;
   if (mediaId && downloadMedia) image = await downloadMedia(mediaId);
 
-  const analysis = await brain.analyzeIdea({ text, preview: previews.join('\n'), image, urls });
+  const analysis = await brain.analyzeIdea({ text, preview: previews.join('\n'), image, urls, video: reel?.video });
   const idea = createIdea(state, analysis, { urls, text, hasImage: Boolean(image) });
   const replies = [`✅ Saved as *#${idea.n}*\n\n${ideaCard(idea)}`];
 
@@ -144,7 +149,7 @@ async function newIdea(state, { text, urls, mediaId }, { brain, preview, downloa
       replies.push(`Reply *do ${idea.n}.${first.n}* and I'll do step ${first.n} for you.`);
     }
   }
-  if (urls.some(u => /instagram/.test(u)) && !previews.length && !image && text.replace(/https?:\/\/\S+/g, '').trim().length < 15) {
+  if (urls.some(u => /instagram/.test(u)) && !previews.length && !reel?.video && !image && text.replace(/https?:\/\/\S+/g, '').trim().length < 15) {
     replies.push('💡 Instagram didn\'t let me see this reel. For a sharper plan, send a screenshot or paste the caption, then reply *note ' + idea.n + ' <caption>*.');
   }
   return replies;

@@ -1,7 +1,7 @@
 // Free AI brain: Google Gemini (key from aistudio.google.com, free tier).
 // Same three jobs as the Claude brain. Gemini can also watch public YouTube videos directly.
 
-import { SYSTEM, IDEA_SCHEMA, CHAT_SCHEMA, ideaPrompt, stepPrompt, chatPrompt } from './ai.js';
+import { SYSTEM, IDEA_SCHEMA, CHAT_SCHEMA, REEL_SCHEMA, ideaPrompt, stepPrompt, chatPrompt } from './ai.js';
 import { detectPlatform } from './ideas.js';
 
 const API = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -80,18 +80,40 @@ export function createGeminiBrain(cfg, fetchImpl = fetch) {
 
   return {
     kind: 'gemini',
-    async analyzeIdea({ text, preview, image, urls = [] }) {
+    async analyzeIdea({ text, preview, image, urls = [], video }) {
       const parts = [];
       const yt = urls.find(u => detectPlatform(u) === 'youtube');
       if (yt) parts.push({ file_data: { file_uri: yt } });
+      if (video) parts.push({ inline_data: { mime_type: video.mimeType, data: video.base64 } });
       if (image) parts.push({ inline_data: { mime_type: image.mimeType, data: image.base64 } });
-      parts.push({ text: ideaPrompt({ text, preview, hasImage: Boolean(image), hasVideo: Boolean(yt) }) });
+      const hasVideo = Boolean(yt || video);
+      parts.push({ text: ideaPrompt({ text, preview, hasImage: Boolean(image), hasVideo }) });
       try {
-        return parseJsonLoose(await generate(parts, { schema: IDEA_SCHEMA, timeoutMs: yt ? 40_000 : 25_000 }));
+        return parseJsonLoose(await generate(parts, { schema: IDEA_SCHEMA, timeoutMs: hasVideo ? 40_000 : 25_000 }));
       } catch (e) {
-        if (!yt) throw e;
-        // Video too long / private: fall back to the link text only.
-        return parseJsonLoose(await generate(parts.filter(p => !p.file_data), { schema: IDEA_SCHEMA }));
+        if (!hasVideo) throw e;
+        // Video too long / unreadable: fall back to the caption text only.
+        return parseJsonLoose(await generate(parts.filter(p => !p.file_data && !(p.inline_data && p.inline_data.mime_type.startsWith('video/'))), { schema: IDEA_SCHEMA }));
+      }
+    },
+    /** Watch a reel and say exactly what it teaches (used by /api/reel and Claude sessions). */
+    async understandReel(reel) {
+      const parts = [];
+      if (reel.youtube) parts.push({ file_data: { file_uri: reel.youtube } });
+      if (reel.video) parts.push({ inline_data: { mime_type: reel.video.mimeType, data: reel.video.base64 } });
+      parts.push({ text: [
+        `Reel link: ${reel.url}`,
+        reel.author ? `Creator: ${reel.author}` : '',
+        reel.caption ? `Caption:\n${reel.caption}` : '',
+        reel.video || reel.youtube ? 'Watch the attached video carefully, including what is said and what is shown on screen.' : 'The video itself is not available; work from the caption.',
+        'Explain exactly what this reel teaches. List every tool, GitHub repo and link it mentions.',
+      ].filter(Boolean).join('\n\n') });
+      const hasVideo = Boolean(reel.video || reel.youtube);
+      try {
+        return parseJsonLoose(await generate(parts, { schema: REEL_SCHEMA, timeoutMs: hasVideo ? 45_000 : 25_000 }));
+      } catch (e) {
+        if (!hasVideo) throw e;
+        return parseJsonLoose(await generate(parts.slice(-1), { schema: REEL_SCHEMA }));
       }
     },
     async doStep({ idea, step }) {
