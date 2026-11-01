@@ -229,7 +229,7 @@ test('status: public JSON lists problems; token shows the tracker page', async (
   const pub = await statusGET(new Request('http://x/api/status'), d);
   assert.equal(pub.status, 503);
   const body = await pub.json();
-  assert.ok(body.problems.some(p => /No AI key/.test(p)));
+  assert.ok(body.problems.some(p => /AI not connected/.test(p)));
   assert.ok(!JSON.stringify(body).includes('Andromeda'), 'public check must not leak ideas');
   const page = await statusGET(new Request('http://x/api/status?token=tok'), d);
   assert.match(await page.text(), /Meta Andromeda creative test/);
