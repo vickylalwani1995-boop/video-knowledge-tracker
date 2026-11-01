@@ -33,7 +33,25 @@ a Sunday report, and a private tracker page you can open on your phone.
 
 Only **your** number can use it. Messages from anyone else are ignored.
 
-## Set it up (about 30 minutes, once)
+## Your live setup (Nov 2026)
+
+- Live at `https://idea-agent-ochre.vercel.app` (Vercel project `idea-agent`, deployed from the `agent/` folder of this repo)
+- AI: **Gemini, free** (`GEMINI_API_KEY`). Claude is used only if you set `AI_PROVIDER=claude` + `ANTHROPIC_API_KEY`.
+- Storage: the project's private **Vercel Blob** store (your earlier ideas were imported automatically)
+- Webhook in Meta: `/api/webhook/whatsapp`
+- Health: `/api/status` (public, no idea data) · Tracker: `/status?token=STATUS_TOKEN`
+
+### Fix "the bot stopped replying" (expired WhatsApp token)
+The token from Meta's API Setup page dies after 24 hours. Make a permanent one, once:
+1. **business.facebook.com → Settings → Users → System users → Add**: name `idea-agent`, role **Admin**.
+2. **Assign assets**: Apps → *Idea Agent* (full control); WhatsApp accounts → your test account (full control).
+3. **Generate new token** → app *Idea Agent* → expiry **Never** → tick `whatsapp_business_messaging` and
+   `whatsapp_business_management` → Generate → copy it.
+4. **vercel.com → idea-agent → Settings → Environment Variables → Add**: key `WHATSAPP_TOKEN`, paste, tick
+   **Sensitive**, Production + Preview → Save. Then **Deployments → ⋯ → Redeploy**.
+5. Send `hi` to the bot. `/api/status` should now say `"ok": true`.
+
+## Set it up from scratch (about 30 minutes, once)
 
 All accounts are your own, on your personal email. **Never paste keys or tokens into any chat (including Claude or Grok).**
 You type them only into Vercel's Environment Variables screen.
