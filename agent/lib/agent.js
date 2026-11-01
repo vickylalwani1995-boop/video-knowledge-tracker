@@ -113,7 +113,7 @@ export async function respond(state, msg, deps) {
   return [ans.reply || helpText()];
 }
 
-async function newIdea(state, { text, urls, mediaId, isVideo }, { brain, preview, readReel, downloadMedia, notify, autoDo = true }) {
+async function newIdea(state, { text, urls, mediaId, isVideo }, { brain, preview, readReel, downloadMedia, extractFrames, notify, autoDo = true }) {
   const dup = findDuplicate(state, urls);
   if (dup) return [`You already sent this one, it's saved as *#${dup.n}*.`, ideaCard(dup)];
   if (notify) await notify('👀 Got it, analysing… (about 30 seconds)').catch(() => {});
@@ -131,7 +131,13 @@ async function newIdea(state, { text, urls, mediaId, isVideo }, { brain, preview
     if (isVideo || file.mimeType.startsWith('video/')) sentVideo = file; else image = file;
   }
 
-  const analysis = await brain.analyzeIdea({ text, preview: previews.join('\n'), image, urls, video: sentVideo || reel?.video });
+  // Claude looks at videos as frames; Gemini takes the video file directly.
+  let frames = null;
+  if (sentVideo && brain.kind !== 'gemini' && extractFrames) {
+    if (notify) await notify('🎬 Watching your video…').catch(() => {});
+    frames = (await extractFrames(Buffer.from(sentVideo.base64, 'base64'))).frames;
+  }
+  const analysis = await brain.analyzeIdea({ text, preview: previews.join('\n'), image, urls, frames, video: frames ? null : sentVideo || reel?.video });
   const idea = createIdea(state, analysis, { urls, text, hasImage: Boolean(image || sentVideo) });
   const replies = [`✅ Saved as *#${idea.n}*\n\n${ideaCard(idea)}`];
 

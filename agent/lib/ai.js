@@ -73,13 +73,24 @@ export const REEL_SCHEMA = {
   required: ['title', 'what_it_teaches', 'spoken_points', 'category', 'tools_mentioned', 'github_repos', 'links_mentioned', 'comment_to_get', 'hype_check', 'how_to_use_for_me'],
 };
 
+/** Video frames → labelled images (Claude watches a video as a sequence of stills). */
+export function frameParts(frames) {
+  if (!frames?.length) return [];
+  const out = [{ type: 'text', text: `The video I sent, as ${frames.length} frames in order (read the on-screen text and subtitles carefully; there is no audio):` }];
+  for (const f of frames) {
+    out.push({ type: 'text', text: `Frame at ${f.label}` });
+    out.push({ type: 'image', source: { type: 'base64', media_type: f.mimeType, data: f.base64 } });
+  }
+  return out;
+}
+
 export function ideaPrompt({ text, preview, hasImage, hasVideo }) {
   return [
     'New idea forwarded from my phone. Analyse it and make an execution plan.',
     text ? `My message:\n${text}` : '',
     preview ? `What I could read from the link:\n${preview}` : '',
     hasImage ? 'The attached image is a screenshot of the reel/post.' : '',
-    hasVideo ? 'The attached video is the actual video I watched. Base the plan on what it teaches.' : '',
+    hasVideo ? 'The attached video (or its frames) is the actual reel I watched. Base the plan on what it teaches; quote on-screen text where useful.' : '',
     !preview && !hasImage && !hasVideo ? 'Note: the video itself could not be opened (Instagram blocks bots). Work from the text; if it is too vague, still make your best plan and put "send a screenshot or the caption" in needs_from_you.' : '',
     'Mark a step owner=agent whenever you could write it yourself as text. The first step should usually be one the agent can do immediately.',
   ].filter(Boolean).join('\n\n');
@@ -144,11 +155,11 @@ export function createBrain(cfg, { client } = {}) {
 
   return {
     kind: 'claude',
-    async analyzeIdea({ text, preview, image, video }) {
+    async analyzeIdea({ text, preview, image, frames }) {
       const parts = [];
-      // Claude reads images, not video files: a sent video is described from its caption/message.
       if (image) parts.push({ type: 'image', source: { type: 'base64', media_type: image.mimeType, data: image.base64 } });
-      parts.push({ type: 'text', text: ideaPrompt({ text, preview, hasImage: Boolean(image) }) });
+      parts.push(...frameParts(frames));
+      parts.push({ type: 'text', text: ideaPrompt({ text, preview, hasImage: Boolean(image), hasVideo: Boolean(frames?.length) }) });
       return call({ content: parts, schema: IDEA_SCHEMA });
     },
 
@@ -161,7 +172,7 @@ export function createBrain(cfg, { client } = {}) {
 
     /** Read a reel from its caption (and a screenshot if given). Claude does not take video files. */
     async understandReel(reel) {
-      const parts = [];
+      const parts = [...frameParts(reel.frames)];
       if (reel.image) parts.push({ type: 'image', source: { type: 'base64', media_type: reel.image.mimeType, data: reel.image.base64 } });
       parts.push({ type: 'text', text: [
         `Reel link: ${reel.url}`,

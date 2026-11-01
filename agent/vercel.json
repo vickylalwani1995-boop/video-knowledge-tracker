@@ -1,7 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/**/*.js": { "maxDuration": 60 }
+    "api/**/*.js": { "maxDuration": 60 },
+    "api/webhook/whatsapp.js": { "maxDuration": 60, "memory": 1769, "includeFiles": "node_modules/ffmpeg-static/ffmpeg" }
   },
   "rewrites": [
     { "source": "/status", "destination": "/api/status" },

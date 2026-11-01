@@ -440,3 +440,33 @@ test('Claude brain can read a reel caption', async () => {
   assert.equal(out.title, 'Agent Reach');
   assert.match(JSON.stringify(req.messages), /Meet Agent Reach/);
 });
+
+test('video → frames: timing, real extraction, and Claude gets labelled frames', async () => {
+  const { frameTimes, parseDuration, extractFrames } = await import('../lib/video.js');
+  assert.equal(parseDuration('  Duration: 00:01:02.50, start'), 62.5);
+  assert.equal(frameTimes(60).length, 16);
+  assert.deepEqual(frameTimes(3), [0.8, 2.3]);
+
+  const ffmpeg = (await import('ffmpeg-static')).default;
+  const { execFileSync } = await import('node:child_process');
+  const { readFileSync, mkdtempSync } = await import('node:fs');
+  const out = `${mkdtempSync('/tmp/vt-')}/v.mp4`;
+  execFileSync(ffmpeg, ['-loglevel', 'error', '-f', 'lavfi', '-i', 'testsrc=duration=6:size=360x640:rate=10', '-pix_fmt', 'yuv420p', out]);
+  const r = await extractFrames(readFileSync(out));
+  assert.equal(r.duration, 6);
+  assert.equal(r.frames.length, 4);
+  assert.equal(r.frames[0].mimeType, 'image/jpeg');
+
+  // Agent: a WhatsApp video with the Claude brain becomes frames, not a raw video.
+  const d = deps({ downloadMedia: async () => ({ base64: 'VID', mimeType: 'video/mp4' }),
+    extractFrames: async () => ({ duration: 6, frames: [{ at: 1, label: '0:01', base64: 'F', mimeType: 'image/jpeg' }] }) });
+  d.brain.kind = 'claude';
+  await respond(emptyState(), msg('', { type: 'video', mediaId: 'M', isVideo: true }), d);
+  const [, input] = d.brain.calls.find(c => c[0] === 'analyze');
+  assert.equal(input.frames[0].label, '0:01');
+  assert.equal(input.video, null);
+
+  const { frameParts } = await import('../lib/ai.js');
+  const parts = frameParts([{ label: '0:01', base64: 'F', mimeType: 'image/jpeg' }]);
+  assert.deepEqual(parts.map(p => p.type), ['text', 'text', 'image']);
+});

@@ -5,6 +5,7 @@ import { brainFromConfig } from './ai.js';
 import { createWhatsApp } from './whatsapp.js';
 import { linkPreview } from './preview.js';
 import { fetchReel } from './reel.js';
+import { extractFrames } from './video.js';
 
 export async function makeDeps(env = process.env) {
   const cfg = config(env);
@@ -18,6 +19,7 @@ export async function makeDeps(env = process.env) {
     wa,
     preview: url => linkPreview(url),
     readReel: url => fetchReel(url),
+    extractFrames: buf => extractFrames(buf),
     downloadMedia: id => wa.downloadMedia(id),
     waitUntil,
   };
