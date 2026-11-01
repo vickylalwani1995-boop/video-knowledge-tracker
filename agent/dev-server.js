@@ -4,8 +4,11 @@ import { createServer } from 'node:http';
 import * as whatsapp from './api/whatsapp.js';
 import * as cron from './api/cron.js';
 import * as status from './api/status.js';
+import * as ideas from './api/ideas.js';
+import * as reel from './api/reel.js';
+import * as app from './api/app.js';
 
-const routes = { '/api/whatsapp': whatsapp, '/api/cron': cron, '/api/status': status };
+const routes = { '/api/whatsapp': whatsapp, '/api/webhook/whatsapp': whatsapp, '/api/cron': cron, '/api/status': status, '/api/ideas': ideas, '/api/reel': reel, '/api/app': app, '/app': app, '/': app };
 const port = Number(process.env.PORT || 3000);
 
 createServer(async (req, res) => {

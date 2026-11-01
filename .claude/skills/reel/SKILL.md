@@ -5,6 +5,14 @@ description: Use whenever the user shares an Instagram reel, YouTube, TikTok or 
 
 # Reel → understand → do it → track
 
+## 🛠️ Main tool: the `rr` CLI (controls every button of the live app)
+`RR_TOKEN=<token> node agent/rr.js <cmd>`: list | add <link> | show N | done N.M | undo N.M | stage N <stage> |
+note N <text> | earned N <amt> | plan N '<json>' | reel <link>. Token = the part after `?token=` in Vicky's app link.
+Live app (Vicky's phone): https://idea-agent-ochre.vercel.app/app?token=… — the single source of truth.
+`review` = `rr list`, then for each "⏳ Not reviewed" idea: `rr reel <link>` (caption), decide, and
+`rr plan N '{"verdict":"✅ Good: …","money_score":8,"one_liner":"…","how_it_earns":"…","steps":[{"text":"…","owner":"agent"}]}'`.
+If this chat's network blocks vercel.app, run the same command inside a Vercel sandbox (see section 1) in ONE call.
+
 ## 🎯 What Vicky wants (most important rule)
 "I watched it, liked it, shared it. Now help me USE it in real life."
 **NO HOMEWORK.** Never reply with a list of steps for Vicky to do. For every reel either (a) do it yourself and

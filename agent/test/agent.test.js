@@ -489,3 +489,19 @@ test('web app: needs token, seeds shared reels once, add-link saves instantly, s
   await post({ action: 'step', n: 1, step: 3, done: true });
   assert.equal((await d.store.load()).ideas[0].steps[2].done, true);
 });
+
+test('rr CLI drives the tracker API', async () => {
+  const { run } = await import('../rr.js');
+  const calls = [];
+  const fetchImpl = async (url, o) => {
+    calls.push({ url, body: o.body && JSON.parse(o.body) });
+    if (url.includes('/api/ideas') && o.method === 'GET') return new Response(JSON.stringify({ ideas: [{ n: 3, title: 'T', stage: 'testing', moneyScore: 8, steps: [{ n: 1, text: 'a', done: true }], notes: [], source: { urls: ['u'] } }] }));
+    return new Response(JSON.stringify({ ok: true, idea: { n: 9, title: 'New' } }));
+  };
+  const opts = { fetchImpl, base: 'http://x', token: 't' };
+  assert.match(await run(['list'], opts), /#3 {2}T/);
+  assert.match(await run(['add', 'https://i.com/r/1'], opts), /Saved as #9/);
+  await run(['done', '3.2'], opts);
+  assert.deepEqual(calls.at(-1).body, { action: 'step', n: 3, step: 2, done: true });
+  assert.match(calls.at(-1).url, /token=t/);
+});

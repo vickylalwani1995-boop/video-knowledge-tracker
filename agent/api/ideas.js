@@ -68,6 +68,24 @@ export async function POST(request, deps) {
       message = `✅ ${idea.n}.${st.n} ${st.text}${body.output ? `\n\n${String(body.output).slice(0, 1500)}` : ''}`;
       break;
     }
+    case 'plan': {
+      // Claude's review of a saved reel: verdict, score, and real steps.
+      idea = findIdea(state, body.n);
+      const pl = body.plan || {};
+      if (!idea) return bad(`No idea #${body.n}`);
+      if (pl.title) idea.title = String(pl.title).slice(0, 120);
+      if (pl.one_liner) idea.oneLiner = String(pl.one_liner).slice(0, 600);
+      if (pl.money_score) idea.moneyScore = Math.min(10, Math.max(1, Math.round(Number(pl.money_score)) || 5));
+      if (pl.how_it_earns) idea.howItEarns = String(pl.how_it_earns);
+      if (pl.verdict) idea.verdict = String(pl.verdict).slice(0, 200);
+      if (Array.isArray(pl.steps)) {
+        idea.steps = pl.steps.map((st, k) => ({ n: k + 1, text: String(st.text || st), owner: ['agent', 'you', 'together'].includes(st.owner) ? st.owner : 'you', done: Boolean(st.done), doneAt: st.done ? Date.now() : null, output: String(st.output || '') }));
+      }
+      if (pl.stage && parseStage(pl.stage)) setStage(idea, parseStage(pl.stage));
+      idea.updatedAt = Date.now();
+      message = `🧠 Reviewed #${idea.n}: ${idea.title}`;
+      break;
+    }
     case 'note': {
       idea = findIdea(state, body.n);
       if (!idea || !body.text) return bad('Need n and text');
@@ -92,7 +110,7 @@ export async function POST(request, deps) {
       break;
     }
     default:
-      return bad('action must be add, step, note, stage or earned');
+      return bad('action must be add-link, add, plan, step, note, stage or earned');
   }
   await deps.store.save(state);
   // Optional WhatsApp ping so the phone stays in sync. Never fails the request.
