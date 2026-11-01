@@ -68,6 +68,21 @@ Work in small steps and show results. Ask only when a decision is genuinely thei
 
 ## 3. Track it (always)
 
+**Main tracker (no setup needed): `REEL-TO-REAL.md` at the repo root.** Vicky reads it on his phone in the
+GitHub app. For every reel: add a row to the Board table (#, idea, reel link, money /10, stage, progress, next step)
+and a section with: reel link + creator, what it teaches, reality check, how it earns, numbered checkbox steps
+(🤖 Claude / 👤 you / 🤝 together), needs-from-you, notes. Tick steps `[x]` with the date and a short result as
+you finish them; update Board + Totals. Put files you produce in `tracker/<number>-<short-name>/`.
+Commit and push after every update (`git push -u origin <current branch>`), so the phone copy stays current.
+
+**Watching videos:** if Vicky uploads a video file, cut it into frames with ffmpeg (system ffmpeg, or
+`agent/node_modules/ffmpeg-static/ffmpeg`, or `node -e "import('./agent/lib/video.js')"` → `extractFrames`),
+then look at the frames in order (Read the .jpg files). Screenshots: just read them. Links only: read the
+public caption if reachable, else ask for a screenshot. Never disguise requests to get past Instagram.
+
+### Optional: the live web tracker
+If the Idea Agent web app is reachable, also mirror updates there:
+
 The tracker is the same one the WhatsApp bot and the phone page (`/status?token=…`) show.
 
 ```
