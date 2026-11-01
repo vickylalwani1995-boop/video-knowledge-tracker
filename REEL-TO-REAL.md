@@ -11,8 +11,9 @@ Open this file on your phone: GitHub app → `video-knowledge-tracker` → `REEL
 |---|------|------|:-----:|-------|:--------:|-----------|
 | 1 | 48-Hour AI SEO Audit Service | Reel (DfHjKrlCKNM) | 8/10 | 📥 Saved | 0/4 | Pick the niche and price (needs you) |
 | 2 | Agent Reach: AI web-data tool → lead research | [nivedan.ai reel](https://www.instagram.com/reel/DdMHjYnpEvL/) | 9/10 | 🧪 Testing | 1/5 | Allow installs in Claude settings, then Claude installs it |
+| 3 | ChatGPT fan-out queries → better SEO articles + "AI Visibility Audit" offer | [@chai.pe.business reel](https://www.instagram.com/reel/DfMNfJFEQGv/) | 8/10 | 🧪 Testing | 2/5 | Vicky: run the Network-tab check for one real topic (5 min) |
 
-**Totals:** 2 ideas · 0 live · ₹0 earned
+**Totals:** 3 ideas · 0 live · ₹0 earned
 
 ---
 
@@ -45,3 +46,21 @@ Open this file on your phone: GitHub app → `video-knowledge-tracker` → `REEL
 - **Notes:**
   - Works without logins for web pages, YouTube, GitHub, RSS. X/Reddit/Instagram need your browser cookies: use a spare account, never your main one.
   - ⚠️ Don't `pip install agent-reach` from PyPI, that's a different project. Use the GitHub link.
+
+## #3 ChatGPT fan-out queries → better SEO articles
+- **Reel:** https://www.instagram.com/reel/DfMNfJFEQGv/ by @chai.pe.business (1 Nov 2026), credit @edwardeachday
+- **What it teaches:** ChatGPT splits your prompt into several web searches. See them in the browser's Network tab,
+  take the top 3 Google results for each, pull their headings with an SEO Chrome extension, and have AI merge the
+  best parts into one outline. Result: articles that match what AI search actually looks for.
+- **Reality check:** ✅ Real and useful. Free. Works for blogs and client content; also proves "AI visibility" to clients.
+- **How it earns:** (a) better-ranking articles for clients, (b) sell an **"AI Visibility Audit"**: show a client the
+  exact searches ChatGPT runs for their category and who wins them.
+- **Steps**
+  - [x] 1. Understand the reel and check it's real. 🤖 *Claude* (1 Nov)
+  - [x] 2. Run the method on a demo topic and write the merged outline. 🤖 *Claude* (1 Nov)
+        → `tracker/003-chatgpt-fanout-outline/demo-outline.md`, guide: `HOW-TO.md`
+  - [ ] 3. Do the 5-minute Network-tab check for one real topic and paste the searches to Claude. 👤 *you*
+  - [ ] 4. Claude writes the full article from those searches. 🤖 *Claude*
+  - [ ] 5. Package it as an "AI Visibility Audit" offer for one client. 🤝 *together*
+- **Needs from you:** one real topic or client (your own agency is fine).
+- **Notes:** Heading sources: superblog.ai, impactplus.com, wsiworld.com.
