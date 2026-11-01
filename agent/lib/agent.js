@@ -107,26 +107,43 @@ export async function respond(state, msg, deps) {
   const urls = extractUrls(text);
   const explicitIdea = /^(idea|save|add)\b[:\s-]*/i.test(text);
   if (urls.length || msg.mediaId || explicitIdea) {
-    return newIdea(state, { text: text.replace(/^(idea|save|add)\b[:\s-]*/i, ''), urls, mediaId: msg.mediaId }, { brain, preview, downloadMedia });
+    return newIdea(state, { text: text.replace(/^(idea|save|add)\b[:\s-]*/i, ''), urls, mediaId: msg.mediaId }, deps);
   }
 
   const summary = state.ideas.filter(i => i.stage !== 'dropped').slice(-25).map(ideaLine).join('\n');
   const ans = await brain.chat({ text, ideasSummary: summary, history: state.history || [] });
-  if (ans.intent === 'new_idea') return newIdea(state, { text, urls: [], mediaId: null }, { brain, preview, downloadMedia });
+  if (ans.intent === 'new_idea') return newIdea(state, { text, urls: [], mediaId: null }, deps);
   return [ans.reply || helpText()];
 }
 
-async function newIdea(state, { text, urls, mediaId }, { brain, preview, downloadMedia }) {
+async function newIdea(state, { text, urls, mediaId }, { brain, preview, downloadMedia, notify, autoDo = true }) {
   const dup = findDuplicate(state, urls);
   if (dup) return [`You already sent this one, it's saved as *#${dup.n}*.`, ideaCard(dup)];
+  if (notify) await notify('👀 Got it, analysing… (about 30 seconds)').catch(() => {});
 
   const previews = preview ? (await Promise.all(urls.slice(0, 3).map(u => preview(u).catch(() => '')))).filter(Boolean) : [];
   let image = null;
   if (mediaId && downloadMedia) image = await downloadMedia(mediaId);
 
-  const analysis = await brain.analyzeIdea({ text, preview: previews.join('\n'), image });
+  const analysis = await brain.analyzeIdea({ text, preview: previews.join('\n'), image, urls });
   const idea = createIdea(state, analysis, { urls, text, hasImage: Boolean(image) });
   const replies = [`✅ Saved as *#${idea.n}*\n\n${ideaCard(idea)}`];
+
+  // Don't just plan it: do the first step the agent can do, right away.
+  const first = autoDo && idea.steps.find(s => s.owner === 'agent' && !s.done);
+  if (first) {
+    try {
+      if (notify) await notify(replies.shift()).catch(() => {});
+      const output = await brain.doStep({ idea, step: first });
+      first.output = output;
+      markStep(idea, first.n, true);
+      const nx = nextStep(idea);
+      replies.push(`🤖 *Done for you: ${idea.n}.${first.n} ${first.text}*\n\n${output}`);
+      if (nx) replies.push(nx.owner === 'agent' ? `Next: *${idea.n}.${nx.n}* ${nx.text}\nReply *do ${idea.n}.${nx.n}* and I'll do it.` : `👤 Your turn: *${idea.n}.${nx.n}* ${nx.text}\nReply *done ${idea.n}.${nx.n}* when finished.`);
+    } catch {
+      replies.push(`Reply *do ${idea.n}.${first.n}* and I'll do step ${first.n} for you.`);
+    }
+  }
   if (urls.some(u => /instagram/.test(u)) && !previews.length && !image && text.replace(/https?:\/\/\S+/g, '').trim().length < 15) {
     replies.push('💡 Instagram didn\'t let me see this reel. For a sharper plan, send a screenshot or paste the caption, then reply *note ' + idea.n + ' <caption>*.');
   }
@@ -151,9 +168,11 @@ export async function handleMessage(msg, deps) {
   await store.save(state); // record the id first, so a Meta retry while we think isn't processed twice
 
   wa.markRead?.(msg.id);
+  let sentEarly = 0;
+  const notify = async text => { await wa.sendText(msg.from, text); sentEarly++; };
   let replies;
   try {
-    replies = await respond(state, msg, deps);
+    replies = await respond(state, msg, { ...deps, notify });
     state.meta.lastError = null;
   } catch (err) {
     state.meta.lastError = { message: String(err.message || err).slice(0, 300), at: Date.now() };

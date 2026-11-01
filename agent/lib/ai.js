@@ -4,7 +4,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-const SYSTEM = `You are the Idea Agent for a digital-marketing operator who runs an agency and also wants side income.
+export const SYSTEM = `You are the Idea Agent for a digital-marketing operator who runs an agency and also wants side income.
 They watch Instagram reels and YouTube videos full of tactics (Meta ads, Google ads, SEO/AEO/GEO, websites, AI automation,
 content, offers) but rarely execute them. Your job is to close that gap: turn each idea into something real that makes money,
 either for their own business or as a service they sell to clients.
@@ -16,7 +16,7 @@ Rules:
 - Never ask for passwords, API keys or card details. Never suggest scraping private accounts, fake reviews or spam.
 - Messages are read on WhatsApp: short lines, *bold* with single asterisks, no markdown headings or tables.`;
 
-const IDEA_SCHEMA = {
+export const IDEA_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -45,7 +45,7 @@ const IDEA_SCHEMA = {
   required: ['title', 'one_liner', 'category', 'money_score', 'money_why', 'how_it_earns', 'effort', 'cost_estimate', 'first_test', 'client_pitch', 'needs_from_you', 'steps'],
 };
 
-const CHAT_SCHEMA = {
+export const CHAT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -54,6 +54,45 @@ const CHAT_SCHEMA = {
   },
   required: ['intent', 'reply'],
 };
+
+export function ideaPrompt({ text, preview, hasImage, hasVideo }) {
+  return [
+    'New idea forwarded from my phone. Analyse it and make an execution plan.',
+    text ? `My message:\n${text}` : '',
+    preview ? `What I could read from the link:\n${preview}` : '',
+    hasImage ? 'The attached image is a screenshot of the reel/post.' : '',
+    hasVideo ? 'The attached video is the actual video I watched. Base the plan on what it teaches.' : '',
+    !preview && !hasImage && !hasVideo ? 'Note: the video itself could not be opened (Instagram blocks bots). Work from the text; if it is too vague, still make your best plan and put "send a screenshot or the caption" in needs_from_you.' : '',
+    'Mark a step owner=agent whenever you could write it yourself as text. The first step should usually be one the agent can do immediately.',
+  ].filter(Boolean).join('\n\n');
+}
+
+export function stepPrompt(idea, step) {
+  return [
+    `Idea #${idea.n}: ${idea.title}`,
+    idea.oneLiner,
+    `How it earns: ${idea.howItEarns}`,
+    `First test: ${idea.firstTest}`,
+    `All steps:\n${idea.steps.map(s => `${s.n}. ${s.text}${s.done ? ' (done)' : ''}`).join('\n')}`,
+    idea.notes?.length ? `My notes:\n${idea.notes.map(n => `- ${n.text}`).join('\n')}` : '',
+    '',
+    `Do step ${step.n} now: "${step.text}".`,
+    'Produce the finished deliverable itself (actual ad copy, actual page text, actual script, actual message to send, exact click-by-click setup), ready to copy-paste. If part of it truly needs me, say exactly what I must do in 1-3 bullet points at the end. Keep it under 2500 characters.',
+  ].filter(Boolean).join('\n');
+}
+
+export function chatPrompt(text, ideasSummary) {
+  return `My ideas right now:\n${ideasSummary || '(none yet)'}\n\nMy message: ${text}`;
+}
+
+/** Pick the brain: Gemini (free) first, Claude if chosen, offline fallback otherwise. */
+export async function brainFromConfig(cfg) {
+  const { aiProviderOf } = await import('./config.js');
+  const p = aiProviderOf(cfg);
+  if (p === 'gemini') return (await import('./gemini.js')).createGeminiBrain(cfg);
+  if (p === 'claude') return createBrain(cfg);
+  return offlineBrain();
+}
 
 export function createBrain(cfg, { client } = {}) {
   if (!cfg.anthropicKey && !client) return offlineBrain();
@@ -90,39 +129,20 @@ export function createBrain(cfg, { client } = {}) {
     async analyzeIdea({ text, preview, image }) {
       const parts = [];
       if (image) parts.push({ type: 'image', source: { type: 'base64', media_type: image.mimeType, data: image.base64 } });
-      parts.push({
-        type: 'text',
-        text: [
-          'New idea forwarded from my phone. Analyse it and make an execution plan.',
-          text ? `My message:\n${text}` : '',
-          preview ? `What I could read from the link:\n${preview}` : '',
-          image ? 'The attached image is a screenshot of the reel/post.' : '',
-          !preview && !image ? 'Note: the video itself could not be opened (Instagram blocks bots). Work from the text; if it is too vague, still make your best plan and put "send a screenshot or the caption" in needs_from_you.' : '',
-        ].filter(Boolean).join('\n\n'),
-      });
+      parts.push({ type: 'text', text: ideaPrompt({ text, preview, hasImage: Boolean(image) }) });
       return call({ content: parts, schema: IDEA_SCHEMA });
     },
 
     async doStep({ idea, step }) {
       return call({
-        content: [
-          `Idea #${idea.n}: ${idea.title}`,
-          idea.oneLiner,
-          `How it earns: ${idea.howItEarns}`,
-          `First test: ${idea.firstTest}`,
-          `All steps:\n${idea.steps.map(s => `${s.n}. ${s.text}${s.done ? ' (done)' : ''}`).join('\n')}`,
-          idea.notes?.length ? `My notes:\n${idea.notes.map(n => `- ${n.text}`).join('\n')}` : '',
-          '',
-          `Do step ${step.n} now: "${step.text}".`,
-          'Produce the finished deliverable itself (actual ad copy, actual page text, actual script, actual message to send, exact click-by-click setup), ready to copy-paste. If part of it truly needs me, say exactly what I must do in 1-3 bullet points at the end. Keep it under 2500 characters.',
-        ].filter(Boolean).join('\n'),
+        content: stepPrompt(idea, step),
         maxTokens: 16000,
       });
     },
 
     async chat({ text, ideasSummary, history }) {
       return call({
-        content: `My ideas right now:\n${ideasSummary || '(none yet)'}\n\nMy message: ${text}`,
+        content: chatPrompt(text, ideasSummary),
         schema: CHAT_SCHEMA,
         history,
       });

@@ -69,6 +69,20 @@ export function createWhatsApp(cfg, fetchImpl = fetch) {
     async markRead(messageId) {
       try { await post({ status: 'read', message_id: messageId }); } catch { /* cosmetic only */ }
     },
+    /** Is the access token still valid? (Temporary tokens from Meta's API Setup page expire after ~24h.) */
+    async checkToken() {
+      if (!cfg.waToken || !cfg.waPhoneId) return { ok: false, problem: 'WhatsApp token or phone number id missing' };
+      try {
+        const res = await fetchImpl(`${base}/${cfg.waPhoneId}?fields=display_phone_number,verified_name`, { headers: auth });
+        const body = await res.json().catch(() => ({}));
+        if (res.ok) return { ok: true, number: body.display_phone_number, name: body.verified_name };
+        const e = body.error || {};
+        const expired = e.code === 190 || /expired|session/i.test(e.message || '');
+        return { ok: false, expired, problem: expired ? 'WhatsApp token EXPIRED: create a permanent token (see guide) and save it as WHATSAPP_TOKEN' : `WhatsApp rejected the token: ${e.message || res.status}` };
+      } catch (err) {
+        return { ok: false, problem: `Could not reach WhatsApp: ${err.message}` };
+      }
+    },
     async downloadMedia(mediaId) {
       const meta = await fetchImpl(`${base}/${mediaId}`, { headers: auth }).then(r => r.json());
       if (!meta?.url) throw new Error('Could not find the image on WhatsApp');

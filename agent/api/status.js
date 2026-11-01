@@ -12,8 +12,8 @@ export function healthChecks(state, report, now = Date.now()) {
   const problems = [];
   if (!report.whatsapp) problems.push('WhatsApp token / phone number id missing');
   if (!report.owner) problems.push('OWNER_WHATSAPP missing');
-  if (!report.ai) problems.push('ANTHROPIC_API_KEY missing (running in offline mode)');
-  if (report.storage !== 'redis') problems.push('No Redis storage connected: ideas will be lost');
+  if (!report.ai) problems.push('No AI key (GEMINI_API_KEY): running in offline mode');
+  if (report.storage === 'local-file') problems.push('No storage connected (Vercel Blob or Redis): ideas will be lost');
   if (!report.signatureCheck) problems.push('WHATSAPP_APP_SECRET missing: webhook is not verified');
   if (!report.cronSecret) problems.push('CRON_SECRET missing: daily briefs are off');
   const ageH = now - (state.meta.createdAt || now);
@@ -69,21 +69,28 @@ ${cols || '<p><small>No ideas yet. Forward a reel to your agent on WhatsApp.</sm
 </body></html>`;
 }
 
-export async function GET(request, deps = makeDeps()) {
-  const { cfg, store } = deps;
+export async function GET(request, deps) {
+  deps = deps || await makeDeps();
+  const { cfg, store, wa, brain } = deps;
   const report = configReport(cfg);
+  const isPrivate = Boolean(cfg.statusToken) && new URL(request.url).searchParams.get('token') === cfg.statusToken;
   let state;
   try { state = await store.load(); }
   catch (err) {
     return Response.json({ ok: false, problems: [`Storage unreachable: ${err.message}`] }, { status: 503 });
   }
   const problems = healthChecks(state, report);
-  const token = new URL(request.url).searchParams.get('token');
-  if (cfg.statusToken && token === cfg.statusToken) {
+  // Live checks: is the WhatsApp token still valid? (private page also tests the AI)
+  const waCheck = wa?.checkToken ? await wa.checkToken() : { ok: true };
+  if (!waCheck.ok && report.whatsapp) problems.unshift(waCheck.problem);
+  if (isPrivate && brain?.ping) {
+    try { await brain.ping(); } catch (e) { problems.push(`AI test failed: ${e.message}`); }
+  }
+  if (isPrivate) {
     return new Response(renderPage(state, problems), { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
   }
   return Response.json(
-    { ok: problems.length === 0, problems, checks: report, lastInboundAt: state.meta.lastInboundAt, lastBriefAt: state.meta.lastBriefAt },
+    { ok: problems.length === 0, problems, checks: { ...report, whatsappTokenValid: waCheck.ok }, lastInboundAt: state.meta.lastInboundAt, lastBriefAt: state.meta.lastBriefAt },
     { status: problems.length ? 503 : 200, headers: { 'Cache-Control': 'no-store' } },
   );
 }

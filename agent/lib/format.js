@@ -100,7 +100,7 @@ export function statusText(state, report, now = Date.now()) {
   const ok = v => (v ? '✅' : '❌');
   return [
     '*Status* 🩺',
-    `${ok(report.whatsapp)} WhatsApp  ${ok(report.ai)} AI brain  ${report.storage === 'redis' ? '✅' : '⚠️'} Storage (${report.storage})`,
+    `${ok(report.whatsapp)} WhatsApp  ${ok(report.ai)} AI brain  ${report.storage !== 'local-file' ? '✅' : '⚠️'} Storage (${report.storage})`,
     `${ok(report.signatureCheck)} Webhook signature check  ${ok(report.cronSecret)} Scheduled briefs`,
     `Last message from you: ${ago(state.meta.lastInboundAt)}`,
     `Last daily brief: ${ago(state.meta.lastBriefAt)}`,

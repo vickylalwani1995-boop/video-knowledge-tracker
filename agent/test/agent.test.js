@@ -36,7 +36,7 @@ function fakeBrain() {
 }
 const fakeWa = () => { const sent = []; return { sent, async sendText(to, text) { sent.push({ to, text }); }, async sendTemplate(to, name) { sent.push({ to, template: name }); } }; };
 const baseCfg = (over = {}) => ({ ...config({}), ownerNumber: '911234567890', ...over });
-const deps = (over = {}) => ({ cfg: baseCfg(), brain: fakeBrain(), wa: fakeWa(), store: memoryStore(), preview: async () => '', downloadMedia: async () => ({ base64: 'AAA', mimeType: 'image/jpeg' }), ...over });
+const deps = (over = {}) => ({ cfg: baseCfg(), brain: fakeBrain(), wa: fakeWa(), store: memoryStore(), preview: async () => '', downloadMedia: async () => ({ base64: 'AAA', mimeType: 'image/jpeg' }), autoDo: false, ...over });
 const msg = (text, extra = {}) => ({ id: `m${Math.random()}`, from: '911234567890', type: 'text', text, ...extra });
 
 test('normalizeUrl ignores tracking params and reel/reels variants', () => {
@@ -230,7 +230,7 @@ test('status: public JSON lists problems; token shows the tracker page', async (
   const pub = await statusGET(new Request('http://x/api/status'), d);
   assert.equal(pub.status, 503);
   const body = await pub.json();
-  assert.ok(body.problems.some(p => /ANTHROPIC_API_KEY/.test(p)));
+  assert.ok(body.problems.some(p => /No AI key/.test(p)));
   assert.ok(!JSON.stringify(body).includes('Andromeda'), 'public check must not leak ideas');
   const page = await statusGET(new Request('http://x/api/status?token=tok'), d);
   assert.match(await page.text(), /Meta Andromeda creative test/);
@@ -293,4 +293,77 @@ test('offline brain still produces a usable plan', async () => {
   const a = await offlineBrain().analyzeIdea({ text: 'https://x.com/a Use FAQ schema for AEO' });
   assert.match(a.title, /FAQ schema/);
   assert.ok(a.steps.length >= 3);
+});
+
+test('new idea: sends "Got it" first, then the plan, then does the first agent step automatically', async () => {
+  const d = deps({ autoDo: true });
+  await handleMessage(msg('https://www.instagram.com/reel/AUTO1/ use FAQ schema for AEO'), d);
+  const texts = d.wa.sent.map(x => x.text);
+  assert.match(texts[0], /Got it, analysing/);
+  assert.match(texts[1], /Saved as \*#1\*/);
+  assert.match(texts[2], /Done for you: 1\.1/);
+  assert.match(texts[2], /DELIVERABLE for step 1/);
+  assert.match(texts[3], /Your turn: \*1\.2\*/);
+  const s = await d.store.load();
+  assert.equal(s.ideas[0].steps[0].done, true);
+});
+
+test('config reads secrets from normal names or from numbered pieces', async () => {
+  const { config: c, aiProviderOf } = await import('../lib/config.js');
+  const cfg = c({ WA_K1: 'abcdefghij', WA_K2: 'klmnopqrstuv', GEMINI_API_KEY: 'g'.repeat(39), OWNER_WHATSAPP_NUMBER: '+91 79902 49914' });
+  assert.equal(cfg.waToken, 'abcdefghijklmnopqrstuv');
+  assert.equal(cfg.ownerNumber, '917990249914');
+  assert.equal(aiProviderOf(cfg), 'gemini');
+  assert.equal(c({ WHATSAPP_TOKEN: 'x'.repeat(30), WA_K1: 'old' }).waToken, 'x'.repeat(30));
+});
+
+test('blob store migrates the old Grok tracker on first load', async () => {
+  const { blobStore } = await import('../lib/store.js');
+  const files = {
+    'data/store.json': JSON.stringify({ next_id: 3, ideas: [
+      { id: 1, title: '48-Hour AI SEO Audit', source_link: 'DfHjKrlCKNM', summary: 'Sell audits', money_score: 8, effort: 'low', stage: 'Saved', steps: [{ number: 1, text: 'Pick niche', status: 'done' }, { number: 2, text: 'Price it', status: 'todo' }], created_at: '2026-10-31T10:00:00Z' },
+      { id: 2, title: 'Ad Agency Retainers', source_link: 'https://www.instagram.com/reel/DdMHjYnpEvL/', summary: '', money_score: 8, effort: 'medium', stage: 'Testing', steps: [], created_at: '2026-10-31T11:00:00Z' },
+    ] }),
+  };
+  const blob = {
+    async get(path) { return files[path] ? { statusCode: 200, stream: new Response(files[path]).body } : null; },
+    async put(path, body) { files[path] = body; },
+  };
+  const store = blobStore(blob);
+  const s = await store.load();
+  assert.deepEqual(s.ideas.map(i => [i.n, i.title, i.moneyScore, i.stage]), [[1, '48-Hour AI SEO Audit', 8, 'saved'], [2, 'Ad Agency Retainers', 8, 'testing']]);
+  assert.equal(s.ideas[0].steps[0].done, true);
+  assert.equal(s.seq, 2);
+  assert.equal(findDuplicate(s, ['https://instagram.com/reel/DdMHjYnpEvL/?igsh=1']).n, 2);
+  createIdea(s, analysis(), { urls: [] });
+  assert.equal(s.ideas.at(-1).n, 3);
+  await store.save(s);
+  assert.equal((await store.load()).ideas.length, 3);
+});
+
+test('Gemini brain: JSON request, YouTube video attached, falls back to lite model when slow', async () => {
+  const { createGeminiBrain, parseJsonLoose } = await import('../lib/gemini.js');
+  const calls = [];
+  const fetchImpl = async (url, { body }) => {
+    calls.push({ url, body: JSON.parse(body) });
+    if (calls.length === 1) return new Response(JSON.stringify({ error: { message: 'overloaded' } }), { status: 503 });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '```json\n' + JSON.stringify(analysis()) + '\n```' }] } }] }));
+  };
+  const brain = createGeminiBrain({ ...baseCfg(), geminiKey: 'k', geminiModel: 'gemini-flash-latest', geminiFallbackModel: 'gemini-flash-lite-latest' }, fetchImpl);
+  const out = await brain.analyzeIdea({ text: 'watch this', urls: ['https://youtu.be/abc123'] });
+  assert.equal(out.title, 'Meta Andromeda creative test');
+  assert.match(calls[0].url, /gemini-flash-latest:generateContent/);
+  assert.match(calls[1].url, /gemini-flash-lite-latest:generateContent/);
+  assert.equal(calls[0].body.contents[0].parts[0].file_data.file_uri, 'https://youtu.be/abc123');
+  assert.equal(calls[0].body.generationConfig.responseMimeType, 'application/json');
+  assert.deepEqual(parseJsonLoose('noise {"a":1} noise'), { a: 1 });
+});
+
+test('status reports an expired WhatsApp token in plain words', async () => {
+  const d = deps();
+  d.wa.checkToken = async () => ({ ok: false, expired: true, problem: 'WhatsApp token EXPIRED: create a permanent token' });
+  d.cfg.waToken = 't'; d.cfg.waPhoneId = 'p';
+  const body = await (await statusGET(new Request('http://x/api/status'), d)).json();
+  assert.match(body.problems[0], /EXPIRED/);
+  assert.equal(body.checks.whatsappTokenValid, false);
 });
