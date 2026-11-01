@@ -68,7 +68,7 @@ Work in small steps and show results. Ask only when a decision is genuinely thei
 
 ## 3. Track it (always)
 
-**Main tracker (no setup needed): `REEL-TO-REAL.md` at the repo root.** Vicky reads it on his phone in the
+**Main tracker (no setup needed): `REEL-TO-REAL.md` at the repo root.** Vicky reads it on their phone in the
 GitHub app. For every reel: add a row to the Board table (#, idea, reel link, money /10, stage, progress, next step)
 and a section with: reel link + creator, what it teaches, reality check, how it earns, numbered checkbox steps
 (🤖 Claude / 👤 you / 🤝 together), needs-from-you, notes. Tick steps `[x]` with the date and a short result as
