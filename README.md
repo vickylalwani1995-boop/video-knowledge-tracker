@@ -41,6 +41,12 @@ npm test         # unit tests for the tracking logic (node --test)
 
 Any link of the form `…/?url=<link>&text=<caption>` works, so bookmarklets and automations (n8n, Zapier) can feed it too.
 
+## 💬 Idea Agent on WhatsApp
+
+The [`agent/`](agent/README.md) folder adds a WhatsApp bot: forward any reel, link or screenshot to it and it replies with
+a money score, a 7-day test and numbered steps. It then **does** the steps it can (ad copy, page text, scripts, pitches),
+tracks the rest, and sends a 9 AM "today's one thing" brief. Setup guide: [agent/README.md](agent/README.md).
+
 ## Files
 
 | File | Purpose |

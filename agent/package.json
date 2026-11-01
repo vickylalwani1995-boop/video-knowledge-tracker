@@ -1,0 +1,19 @@
+{
+  "name": "idea-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WhatsApp Idea Agent: forward a reel, get a plan, track execution until it earns.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "dev": "node dev-server.js",
+    "chat": "node cli.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0"
+  }
+}
