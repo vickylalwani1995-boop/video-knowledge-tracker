@@ -17,6 +17,7 @@ Send reel links any time: saved instantly. Type **`review`** to sort them all at
 | # | Link | Saved | What it is | Verdict | Money |
 |---|------|-------|-----------|---------|:-----:|
 | 4 | [reel DfEt6OONia7](https://www.instagram.com/reel/DfEt6OONia7/) | 1 Nov | **Roast Room**: 7 AI advisors debate your business decisions (@100xengineers) | ✅ Good: Claude can run it here, no install | 7/10 |
+| 5 | [reel DfLO6vHsmHq](https://www.instagram.com/reel/DfLO6vHsmHq/) | 1 Nov | Nate Herk's free **Claude Code mods** (usage panel, screen-record blur, progress view, edit guard); link hidden behind "comment HACKED" | ❌ Skip: coder tools, no money for you | 3/10 |
 
 ## Board (in progress)
 
@@ -26,7 +27,7 @@ Send reel links any time: saved instantly. Type **`review`** to sort them all at
 | 2 | Agent Reach: AI web-data tool → lead research | [nivedan.ai reel](https://www.instagram.com/reel/DdMHjYnpEvL/) | 9/10 | 🧪 Testing | 1/5 | Allow installs in Claude settings, then Claude installs it |
 | 3 | ChatGPT fan-out queries → better SEO articles + "AI Visibility Audit" offer | [@chai.pe.business reel](https://www.instagram.com/reel/DfMNfJFEQGv/) | 8/10 | 🧪 Testing | 2/5 | Vicky: run the Network-tab check for one real topic (5 min) |
 
-**Totals:** 4 ideas (1 in inbox) · 0 live · ₹0 earned
+**Totals:** 5 ideas · 0 live · ₹0 earned
 
 ---
 
