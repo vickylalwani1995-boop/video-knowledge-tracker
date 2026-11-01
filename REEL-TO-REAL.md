@@ -7,11 +7,11 @@ Open this file on your phone: GitHub app → `video-knowledge-tracker` → `REEL
 
 ## 📥 Inbox (quick-saved, not started)
 
-Send reel links (one or many at once). Claude saves each here in about a minute with a verdict.
-Reply **`do N`** to start one, **`top`** for the best 3.
+Send reel links any time: saved instantly. Type **`review`** to sort them all at once,
+**`do N`** to start one, **`top`** for the best 3.
 
-| # | What it is | Verdict | Money | Link |
-|---|-----------|---------|:-----:|------|
+| # | Link | Saved | What it is | Verdict | Money |
+|---|------|-------|-----------|---------|:-----:|
 
 ## Board (in progress)
 

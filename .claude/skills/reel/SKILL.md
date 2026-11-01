@@ -5,13 +5,12 @@ description: Use whenever the user shares an Instagram reel, YouTube, TikTok or 
 
 # Reel → understand → do it → track
 
-## ⚡ DEFAULT = QUICK SAVE (the user said full execution per reel is too slow)
-When Vicky sends one or more links, do ONLY this, fast (aim < 1 minute total, no long research):
-1. Read each caption (direct fetch if allowed; else one Vercel sandbox call for ALL links together;
-   else ask for a screenshot only if the caption is empty).
-2. Add each to the **📥 Inbox** table in `REEL-TO-REAL.md`: #, 1-line what it is, verdict
-   (✅ Good / 🤔 Maybe / ❌ Skip, with a 5-word reason), money /10, link. Same reel twice → say so, don't add.
-3. Commit + push, then reply in ≤ 5 lines: one line per reel + "Reply `do N` to start one."
+## ⚡ DEFAULT = INSTANT SAVE (Vicky hates waiting; never make them wait for a plain link)
+When Vicky sends links without other instructions: do NOT fetch, research or analyse anything.
+Append each link to the **📥 Inbox** table in `REEL-TO-REAL.md` (next #, link, date, verdict "⏳ not reviewed"),
+skip exact duplicates, commit + push, and reply with one line: "✅ Saved N. Type `review` when you have 5 minutes."
+`review` → process ALL unreviewed Inbox links in one batch (one sandbox call for all captions), fill in
+what-it-is / verdict (✅ Good / 🤔 Maybe / ❌ Skip + 5-word reason) / money /10, then reply with a short list + top 3.
 Only go deeper when Vicky says `do N` (then follow sections 1–3 below for that idea).
 `top` → the 3 best undone ideas by money score. `list` → the board.
 
