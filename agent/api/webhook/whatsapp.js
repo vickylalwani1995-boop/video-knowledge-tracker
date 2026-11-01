@@ -7,7 +7,7 @@ import { parseWebhook, verifySignature } from '../../lib/whatsapp.js';
 import { handleMessage } from '../../lib/agent.js';
 
 export async function GET(request, deps) {
-  const { cfg } = deps || await makeDeps();
+  const { cfg } = deps?.cfg ? deps : await makeDeps();
   const q = new URL(request.url).searchParams;
   if (q.get('hub.mode') === 'subscribe' && cfg.waVerifyToken && q.get('hub.verify_token') === cfg.waVerifyToken) {
     return new Response(q.get('hub.challenge') || '', { status: 200 });
@@ -16,7 +16,7 @@ export async function GET(request, deps) {
 }
 
 export async function POST(request, deps) {
-  const d = deps || await makeDeps();
+  const d = deps?.cfg ? deps : await makeDeps();
   const raw = await request.text();
   if (!verifySignature(raw, request.headers.get('x-hub-signature-256'), d.cfg.waAppSecret)) {
     return new Response('Bad signature', { status: 401 });

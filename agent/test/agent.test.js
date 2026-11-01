@@ -367,3 +367,8 @@ test('status reports an expired WhatsApp token in plain words', async () => {
   assert.match(body.problems[0], /EXPIRED/);
   assert.equal(body.checks.whatsappTokenValid, false);
 });
+
+test('handlers ignore the extra context argument Vercel passes', async () => {
+  const res = await statusGET(new Request('http://x/api/status'), { waitUntil() {} });
+  assert.ok([200, 503].includes(res.status));
+});

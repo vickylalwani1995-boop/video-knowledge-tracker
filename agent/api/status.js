@@ -70,7 +70,7 @@ ${cols || '<p><small>No ideas yet. Forward a reel to your agent on WhatsApp.</sm
 }
 
 export async function GET(request, deps) {
-  deps = deps || await makeDeps();
+  deps = deps?.cfg ? deps : await makeDeps();
   const { cfg, store, wa, brain } = deps;
   const report = configReport(cfg);
   const isPrivate = Boolean(cfg.statusToken) && new URL(request.url).searchParams.get('token') === cfg.statusToken;

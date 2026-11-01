@@ -3,7 +3,7 @@ import { makeDeps } from '../lib/deps.js';
 import { runJob } from '../lib/jobs.js';
 
 export async function GET(request, deps) {
-  deps = deps || await makeDeps();
+  deps = deps?.cfg ? deps : await makeDeps();
   const { cfg } = deps;
   if (!cfg.cronSecret || request.headers.get('authorization') !== `Bearer ${cfg.cronSecret}`) {
     return new Response('Unauthorized', { status: 401 });
