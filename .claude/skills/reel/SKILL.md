@@ -5,6 +5,12 @@ description: Use whenever the user shares an Instagram reel, YouTube, TikTok or 
 
 # Reel → understand → do it → track
 
+## 🎯 What Vicky wants
+"I watched it, liked it, shared it. Now help me USE it in real life." Prefer doing the thing yourself right away
+(e.g. a reel about an AI tool → run the same idea here with Claude, no install) over explaining or installing.
+`roast: <decision>` → run a Roast Room: 7 advisors (Strategist, Product-market fit, Pricing, Marketing, Hiring/ops,
+Finance, Devil's advocate), 1–2 lines each, a vote, and a final verdict + 3 next actions.
+
 ## ⚡ DEFAULT = INSTANT SAVE (Vicky hates waiting; never make them wait for a plain link)
 When Vicky sends links without other instructions: do NOT fetch, research or analyse anything.
 Append each link to the **📥 Inbox** table in `REEL-TO-REAL.md` (next #, link, date, verdict "⏳ not reviewed"),

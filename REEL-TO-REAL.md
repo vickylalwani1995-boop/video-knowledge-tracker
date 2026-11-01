@@ -5,6 +5,10 @@ Open this file on your phone: GitHub app → `video-knowledge-tracker` → `REEL
 
 **Stages:** 📥 Saved → 🧪 Testing → 🔨 Building → 🚀 Live → 💰 Earning (🗑️ Dropped)
 
+## ✅ Used in real life
+- **#4 Roast Room (1 Nov):** Claude ran a 7-advisor debate on "which idea first?" → verdict: **#3 AI Visibility Audit first**.
+  Re-run any time: type `roast: <your decision>`.
+
 ## 📥 Inbox (quick-saved, not started)
 
 Send reel links any time: saved instantly. Type **`review`** to sort them all at once,
@@ -12,7 +16,7 @@ Send reel links any time: saved instantly. Type **`review`** to sort them all at
 
 | # | Link | Saved | What it is | Verdict | Money |
 |---|------|-------|-----------|---------|:-----:|
-| 4 | [reel DfEt6OONia7](https://www.instagram.com/reel/DfEt6OONia7/) | 1 Nov | — | ⏳ not reviewed | — |
+| 4 | [reel DfEt6OONia7](https://www.instagram.com/reel/DfEt6OONia7/) | 1 Nov | **Roast Room**: 7 AI advisors debate your business decisions (@100xengineers) | ✅ Good: Claude can run it here, no install | 7/10 |
 
 ## Board (in progress)
 
