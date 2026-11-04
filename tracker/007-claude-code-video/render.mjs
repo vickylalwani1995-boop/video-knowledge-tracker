@@ -1,0 +1,20 @@
+// Renders reel.html into a vertical MP4: real code → real video, no editing software.
+import { createRequire as cr } from 'node:module';
+const { chromium } = cr(import.meta.url)('playwright');
+import { execFileSync } from 'node:child_process';
+import { readdirSync, renameSync, mkdirSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
+const ffmpeg = createRequire(import.meta.url)('/home/user/video-knowledge-tracker/agent/node_modules/ffmpeg-static');
+const dir = new URL('.', import.meta.url).pathname;
+rmSync(dir + 'rec', { recursive: true, force: true }); mkdirSync(dir + 'rec');
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 540, height: 960 }, deviceScaleFactor: 1, recordVideo: { dir: dir + 'rec', size: { width: 540, height: 960 } } });
+const page = await ctx.newPage();
+await page.goto('file://' + dir + 'reel.html');
+await page.waitForTimeout(12300);
+await ctx.close(); await browser.close();
+const webm = dir + 'rec/' + readdirSync(dir + 'rec')[0];
+execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-ss', '0.3', '-i', webm, '-t', '12', '-vf', 'scale=1080:1920:flags=lanczos,fps=30', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-movflags', '+faststart', dir + 'ai-visibility-audit-reel.mp4']);
+execFileSync(ffmpeg, ['-y', '-loglevel', 'error', '-ss', '7.9', '-i', dir + 'ai-visibility-audit-reel.mp4', '-frames:v', '1', '-vf', 'scale=360:-2', dir + 'preview.jpg']);
+rmSync(dir + 'rec', { recursive: true, force: true });
+console.log('done');

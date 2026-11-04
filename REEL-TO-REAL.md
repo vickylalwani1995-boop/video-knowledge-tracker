@@ -10,6 +10,9 @@ Open this file on your phone: GitHub app → `video-knowledge-tracker` → `REEL
 - **#4 Roast Room (1 Nov):** Claude ran a 7-advisor debate on "which idea first?" → verdict: **#3 AI Visibility Audit first**.
   Re-run any time: type `roast: <your decision>`.
 
+- **#7 Claude makes videos with code (4 Nov):** Claude made a 12-second vertical ad for the AI Visibility Audit
+  from code only → `tracker/007-claude-code-video/ai-visibility-audit-reel.mp4`. Edit `reel.html` text, run `node render.mjs`.
+
 ## 📥 Inbox (quick-saved, not started)
 
 Send reel links any time: saved instantly. Type **`review`** to sort them all at once,

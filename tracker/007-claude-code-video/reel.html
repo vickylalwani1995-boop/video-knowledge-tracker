@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{margin:0;box-sizing:border-box}
+html,body{width:540px;height:960px;overflow:hidden;background:#0b0d12;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;color:#fff}
+.scene{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;padding:48px;opacity:0}
+.s1{animation:show 3s 0s both}.s2{animation:show 3s 3s both}.s3{animation:show 3s 6s both}.s4{animation:last 3s 9s both}
+@keyframes show{0%{opacity:0;transform:translateY(40px)}12%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}
+@keyframes last{0%{opacity:0;transform:scale(.92)}15%{opacity:1;transform:none}100%{opacity:1}}
+.tag{font-size:20px;letter-spacing:3px;color:#8b85ff;font-weight:700;margin-bottom:22px}
+h1{font-size:58px;line-height:1.05;font-weight:800}
+h1 em{font-style:normal;background:linear-gradient(90deg,#8b85ff,#34c37a);-webkit-background-clip:text;color:transparent}
+p{font-size:28px;line-height:1.35;color:#c7cbd3;margin-top:22px}
+.chat{background:#171a20;border:1px solid #272b33;border-radius:22px;padding:22px;margin-top:26px}
+.q{font-size:24px;color:#9aa1ac}.a{font-size:26px;margin-top:12px}
+.miss{color:#ff6b5e;font-weight:800}
+.q1,.q2,.q3{font-size:24px;background:#171a20;border-radius:14px;padding:14px 18px;margin-top:14px;border-left:5px solid #8b85ff;opacity:0}
+.s3 .q1{animation:pop .4s 6.5s both}.s3 .q2{animation:pop .4s 7.1s both}.s3 .q3{animation:pop .4s 7.7s both}
+@keyframes pop{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:none}}
+.cta{margin-top:34px;background:#34c37a;color:#0b0d12;font-size:30px;font-weight:800;border-radius:999px;padding:20px 28px;text-align:center}
+.bar{position:absolute;left:0;bottom:0;height:8px;background:#8b85ff;animation:grow 12s linear both}
+@keyframes grow{from{width:0}to{width:100%}}
+</style></head><body>
+<div class="scene s1"><div class="tag">AI SEARCH IS HERE</div><h1>Your customers now ask <em>ChatGPT</em>, not Google.</h1></div>
+<div class="scene s2"><div class="tag">THE PROBLEM</div><h1>Does it recommend <em>you</em>?</h1>
+ <div class="chat"><div class="q">"Best dental clinic near me?"</div><div class="a">ChatGPT lists 3 clinics… <span class="miss">you're not one of them.</span></div></div></div>
+<div class="scene s3"><div class="tag">WHAT WE DO</div><h1>We find the exact searches ChatGPT runs</h1>
+ <div class="q1">🔎 see what AI searches for</div><div class="q2">📊 see who wins them</div><div class="q3">🛠️ fix your pages to win</div></div>
+<div class="scene s4"><div class="tag">AI VISIBILITY AUDIT</div><h1>Get found by <em>AI search</em>.</h1>
+ <p>One page. 48 hours. Clear fixes.</p><div class="cta">DM "AUDIT" to start</div></div>
+<div class="bar"></div>
+</body></html>
