@@ -6,7 +6,7 @@ description: Use whenever the user shares an Instagram reel, YouTube, TikTok or 
 # Reel → understand → do it → track
 
 ## 🛠️ Main tool: the `rr` CLI (controls every button of the live app)
-`RR_TOKEN=<token> node agent/rr.js <cmd>`: list | add <link> | show N | done N.M | undo N.M | stage N <stage> |
+`NODE_USE_ENV_PROXY=1 NODE_NO_WARNINGS=1 RR_TOKEN=<token> node agent/rr.js <cmd>` (the env var makes Node use the session proxy): list | add <link> | show N | done N.M | undo N.M | stage N <stage> |
 note N <text> | earned N <amt> | plan N '<json>' | reel <link>. Token = the part after `?token=` in Vicky's app link.
 Live app (Vicky's phone): https://idea-agent-ochre.vercel.app/app?token=… — the single source of truth.
 `review` = `rr list`, then for each "⏳ Not reviewed" idea: `rr reel <link>` (caption), decide, and
